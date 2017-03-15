@@ -343,27 +343,27 @@ func (c *customHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 
 			value := (*c.rrmap)[key]
-			w.Header().Set("Content-Lenghth", strconv.Itoa(len(value)))
-			w.Header().Set("Content-Type", "application/json")
-			if _, err := w.Write([]byte(value)); err != nil {
-				http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+			if len(value) > 0 {
+				w.Header().Set("Content-Lenghth", strconv.Itoa(len(value)))
+				w.Header().Set("Content-Type", "application/json")
+				if _, err := w.Write([]byte(value)); err != nil {
+					http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+					if debug {
+						log.Println(err)
+					}
+				}
+			} else {
+				http.Error(w, "key not found at internal cache", http.StatusNoContent)
 				if debug {
-					log.Println(err)
+					log.Println("key not found at internal cache")
 				}
 			}
 		}
 
 	} else {
-
-		// nothing to process
-		empty := "{}\n"
-		w.Header().Set("Content-Lenghth", strconv.Itoa(len(empty)))
-		w.Header().Set("Content-Type", "application/json")
-		if _, err := w.Write([]byte(empty)); err != nil {
-			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
-			if debug {
-				log.Println(err)
-			}
+		http.Error(w, "empty request body received", http.StatusNoContent)
+		if debug {
+			log.Println("empty request body received")
 		}
 	}
 
