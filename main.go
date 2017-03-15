@@ -12,6 +12,7 @@ import (
 	"net/http/fcgi"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -52,7 +53,7 @@ func main() {
 	log.Printf("Number of faked request/response: %d", len(reqresmap))
 
 	mux := mux.NewRouter()
-	// bind cmux to mx(route)
+	// bind cmux to mx(route) and rrmap to reqresmap
 	fcgiHandler := &customHandler{cmux: mux, rrmap: &reqresmap}
 	mux.Path("/").Handler(fcgiHandler)
 
@@ -307,19 +308,33 @@ func validateMockInput(mockRequestResponseFile string) ([]byte, error) {
 // must have at least ServeHTTP(), otherwise you will get this error
 // *customHandler does not implement http.Handler (missing ServeHTTP method)
 func (c *customHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	//parameter := r.URL.Query().Get(EncryptedPathParameter)
+
 	debug := (r.URL.Query()[DebugParameter] != nil)
-	//if decrypted, err := decrypt(key, parameter, debug); err != nil {
-	if debug {
-		//http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+
+	message := "{ \"id\": 1 }"
+	w.Header().Set("Content-Lenghth", strconv.Itoa(len(message)))
+	w.Header().Set("Content-Type", "application/json")
+	if _, err := w.Write([]byte(message)); err != nil {
+		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 		if debug {
-			//log.Println(err)
-		}
-		//} else if err = grabImage(decrypted, w, debug); err != nil {
-	} else {
-		//http.Error(w, err.Error(), http.StatusConflict)
-		if debug {
-			//log.Println(err)
+			log.Println(err)
 		}
 	}
+
+	/*
+		//parameter := r.URL.Query().Get(................)
+		//if decrypted, err := decrypt(key, parameter, debug); err != nil {
+		if debug {
+			//http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+			if debug {
+				//log.Println(err)
+			}
+			//} else if err = grabImage(decrypted, w, debug); err != nil {
+		} else {
+			//http.Error(w, err.Error(), http.StatusConflict)
+			if debug {
+				//log.Println(err)
+			}
+		}
+	*/
 }
