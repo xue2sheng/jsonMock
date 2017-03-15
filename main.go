@@ -24,8 +24,9 @@ type RequestResponseMap map[string]string
 
 // helper for HTTP handler queries
 type customHandler struct {
-	cmux  http.Handler
-	rrmap *RequestResponseMap
+	cmux        http.Handler
+	rrmap       *RequestResponseMap
+	forcedDebug bool
 }
 
 // RequestJsonSchema to validate requests
@@ -39,12 +40,14 @@ var MockRequestResponseFile = "requestResponseMap.json"
 
 // DebugParameter global var due to lazyness
 var DebugParameter = "debug"
+var ForcedDebug = false
 
 func main() {
 
-	host, port, mockRequestResponseFile, requestJsonSchemaFile, responseJsonSchemaFile := cmdLine()
-	log.Println("Launched " + host + ":" + port + " MockRequestResponseFile=" + mockRequestResponseFile +
-		" RequestJsonSchemaFile=" + requestJsonSchemaFile + " ResponseJsonSchemaFile=" + responseJsonSchemaFile)
+	host, port, mockRequestResponseFile, requestJsonSchemaFile, responseJsonSchemaFile, forcedDebug := cmdLine()
+	log.Printf("Launched "+host+":"+port+" MockRequestResponseFile="+mockRequestResponseFile+
+		" RequestJsonSchemaFile="+requestJsonSchemaFile+" ResponseJsonSchemaFile="+responseJsonSchemaFile+
+		" ForcedDebug=%t", forcedDebug)
 
 	reqresmap, err := validateMockRequestResponseFile(mockRequestResponseFile, requestJsonSchemaFile, responseJsonSchemaFile)
 	if err != nil {
@@ -54,7 +57,7 @@ func main() {
 
 	mux := mux.NewRouter()
 	// bind cmux to mx(route) and rrmap to reqresmap
-	fcgiHandler := &customHandler{cmux: mux, rrmap: &reqresmap}
+	fcgiHandler := &customHandler{cmux: mux, rrmap: &reqresmap, forcedDebug: forcedDebug}
 	mux.Path("/").Handler(fcgiHandler)
 
 	listener, _ := net.Listen("tcp", host+":"+port) // see nginx.conf
@@ -64,19 +67,20 @@ func main() {
 }
 
 // get command line parameters
-func cmdLine() (string, string, string, string, string) {
+func cmdLine() (string, string, string, string, string, bool) {
 
 	hostArg := "0.0.0.0"
 	portArg := "9797"
 	mockRequestResponseFile := filepath.Dir(os.Args[0]) + filepath.FromSlash("/") + MockRequestResponseFile
 	requestJsonSchemaFile := filepath.Dir(os.Args[0]) + filepath.FromSlash("/") + RequestJsonSchemaFile
 	responseJsonSchemaFile := filepath.Dir(os.Args[0]) + filepath.FromSlash("/") + ResponseJsonSchemaFile
+	forcedDebug := ForcedDebug
 
 	cmd := strings.Join(os.Args, " ")
 	if strings.Contains(cmd, " help") || strings.Contains(cmd, " -help") || strings.Contains(cmd, " --help") ||
 		strings.Contains(cmd, " -h") || strings.Contains(cmd, " /?") {
 		fmt.Println()
-		fmt.Println("Usage: " + os.Args[0] + " <host> <port> <MockRequestResponseFile> <RequestJsonSchema> <ResponseJsonSchema>")
+		fmt.Println("Usage: " + os.Args[0] + " <host> <port> <MockRequestResponseFile> <RequestJsonSchema> <ResponseJsonSchema> <ForcedDebug>")
 		fmt.Println()
 		fmt.Println("host:  Host name for this FastCGI process.   By default " + hostArg)
 		fmt.Println("port:  Port number for this FastCGI process. By default " + portArg)
@@ -84,6 +88,8 @@ func cmdLine() (string, string, string, string, string) {
 		fmt.Println("MockRequestResponseFile: Fake mapped request/response file. By default " + mockRequestResponseFile)
 		fmt.Println("RequestJsonSchemaFile:	  Json Schema to validate requests. By default " + requestJsonSchemaFile)
 		fmt.Println("ResponseJsonSchemaFile:  Json Schema to validate responses. By default " + responseJsonSchemaFile)
+		fmt.Println()
+		fmt.Printf("ForcedDebug:  Flag to force debug mode. By default %b\n", forcedDebug)
 		fmt.Println()
 		fmt.Println("Being a FastCGI, don't forget to properly configure NGINX.")
 		fmt.Println()
@@ -105,7 +111,12 @@ func cmdLine() (string, string, string, string, string) {
 	if len(os.Args) > 5 {
 		responseJsonSchemaFile = os.Args[5]
 	}
-	return hostArg, portArg, mockRequestResponseFile, requestJsonSchemaFile, responseJsonSchemaFile
+	if len(os.Args) > 6 {
+		if os.Args[6] == "ForcedDebug" || os.Args[6] == "forcedDebug" || os.Args[6] == "true" || os.Args[6] == "TRUE" || os.Args[6] == "True" {
+			forcedDebug = true
+		}
+	}
+	return hostArg, portArg, mockRequestResponseFile, requestJsonSchemaFile, responseJsonSchemaFile, forcedDebug
 }
 
 // validate fake request response map against their json schemas
@@ -315,7 +326,7 @@ func validateMockInput(mockRequestResponseFile string) ([]byte, error) {
 // *customHandler does not implement http.Handler (missing ServeHTTP method)
 func (c *customHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
-	debug := (r.URL.Query()[DebugParameter] != nil)
+	debug := (r.URL.Query()[DebugParameter] != nil) || c.forcedDebug
 
 	if r.ContentLength > 0 {
 
