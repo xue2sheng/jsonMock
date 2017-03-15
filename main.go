@@ -392,6 +392,9 @@ func (c *customHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						log.Println(err)
 					}
 				}
+				if debug {
+					log.Println("Sent back: " + value.response)
+				}
 			} else {
 				http.Error(w, "key not found at internal cache", http.StatusNoContent)
 				if debug {
