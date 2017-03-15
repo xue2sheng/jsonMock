@@ -19,8 +19,17 @@ import (
 	"github.com/xeipuuv/gojsonschema"
 )
 
+type Query struct {
+	param string `json:param,omitempty`
+	value string `json:value,omitempty`
+}
+type QueryResponse struct {
+	response string
+	query    []Query
+}
+
 // Request Response map
-type RequestResponseMap map[string]string
+type RequestResponseMap map[string]QueryResponse
 
 // helper for HTTP handler queries
 type customHandler struct {
@@ -122,7 +131,7 @@ func cmdLine() (string, string, string, string, string, bool) {
 // validate fake request response map against their json schemas
 func validateMockRequestResponseFile(mockRequestResponseFile string, requestJsonSchemaFile string, responseJsonSchemaFile string) (RequestResponseMap, error) {
 	var err error
-	var reqresmap RequestResponseMap = make(map[string]string)
+	var reqresmap RequestResponseMap = make(map[string]QueryResponse)
 
 	mock, err := validateMockInput(mockRequestResponseFile)
 	if err != nil {
@@ -145,7 +154,9 @@ func validateMockRequestResponseFile(mockRequestResponseFile string, requestJson
 	resJsonSchema := gojsonschema.NewStringLoader(string(res))
 
 	type ReqRes struct {
-		Req, Res string
+		Qry *[]Query `json:query`
+		Req string   `req:omitempty`
+		Res string   `res:omitempty`
 	}
 	dec := json.NewDecoder(strings.NewReader(string(mock)))
 
@@ -178,11 +189,13 @@ func validateMockRequestResponseFile(mockRequestResponseFile string, requestJson
 			log.Println("This request will be ignored")
 			continue
 		}
-		value, err := compactJson([]byte(rr.Res))
+		response, err := compactJson([]byte(rr.Res))
 		if err != nil {
 			log.Println("That response will be ignored")
 			continue
 		}
+		var value QueryResponse
+		value.response = response
 		reqresmap[key] = value
 
 	}
@@ -296,8 +309,22 @@ func validateMockInput(mockRequestResponseFile string) ([]byte, error) {
       			},
       			"res": {
         			"type": "string"
-      			}
-    		},
+      		    },
+               "query": {
+                    "type": "array",
+                    "items": {
+                       "type": "object",
+                       "properties": {
+                          "param": {
+                            "type": "string"
+                          },
+                          "value": {
+                            "type": "string"
+                          }
+                       }
+                    }
+                  }
+             },
     		"required": [
       			"req",
       			"res"
@@ -354,10 +381,10 @@ func (c *customHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 
 			value := (*c.rrmap)[key]
-			if len(value) > 0 {
-				w.Header().Set("Content-Lenghth", strconv.Itoa(len(value)))
+			if len(value.response) > 0 {
+				w.Header().Set("Content-Lenghth", strconv.Itoa(len(value.response)))
 				w.Header().Set("Content-Type", "application/json")
-				if _, err := w.Write([]byte(value)); err != nil {
+				if _, err := w.Write([]byte(value.response)); err != nil {
 					http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 					if debug {
 						log.Println(err)
