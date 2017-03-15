@@ -1,12 +1,9 @@
-/// https://www.socketloop.com/tutorials/nginx-web-server-go
-/// https://gist.github.com/manishtpatel/8222606
-/// https://www.socketloop.com/tutorials/golang-how-to-encrypt-with-aes-crypto
-/// http://stackoverflow.com/questions/8648682/reading-image-from-http-requests-body-in-go
 package main
 
 import (
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -33,7 +30,7 @@ var RequestJsonSchemaFile = "requestJsonSchema.json"
 var ResponseJsonSchemaFile = "responseJsonSchema.json"
 
 // MockRequestResponseFile global var due to lazyness
-var MockRequestResponseFile = "resquestResponseMap.json"
+var MockRequestResponseFile = "requestResponseMap.json"
 
 // DebugParameter global var due to lazyness
 var DebugParameter = "debug"
@@ -48,6 +45,12 @@ func main() {
 	log.Println("Launched " + host + ":" + port + " MockRequestResponseFile=" + mockRequestResponseFile +
 		" RequestJsonSchemaFile=" + requestJsonSchemaFile + " ResponseJsonSchemaFile=" + responseJsonSchemaFile)
 
+	reqresmap, err := validateMockRequestResponseFile(mockRequestResponseFile, requestJsonSchemaFile, responseJsonSchemaFile)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Println("Number of faked request/respnse: %d", len(reqresmap))
+
 	listener, _ := net.Listen("tcp", host+":"+port) // see nginx.conf
 	if err := fcgi.Serve(listener, fcgiHandler); err != nil {
 		log.Fatal(err)
@@ -59,9 +62,9 @@ func cmdLine() (string, string, string, string, string) {
 
 	hostArg := "0.0.0.0"
 	portArg := "9797"
-	mockRequestResponseFile := filepath.Join(filepath.Dir(os.Args[0]), MockRequestResponseFile)
-	requestJsonSchemaFile := filepath.Join(filepath.Dir(os.Args[0]), RequestJsonSchemaFile)
-	responseJsonSchemaFile := filepath.Join(filepath.Dir(os.Args[0]), ResponseJsonSchemaFile)
+	mockRequestResponseFile := filepath.Dir(os.Args[0]) + filepath.FromSlash("/") + MockRequestResponseFile
+	requestJsonSchemaFile := filepath.Dir(os.Args[0]) + filepath.FromSlash("/") + RequestJsonSchemaFile
+	responseJsonSchemaFile := filepath.Dir(os.Args[0]) + filepath.FromSlash("/") + ResponseJsonSchemaFile
 
 	cmd := strings.Join(os.Args, " ")
 	if strings.Contains(cmd, " help") || strings.Contains(cmd, " -help") || strings.Contains(cmd, " --help") ||
@@ -101,8 +104,27 @@ func cmdLine() (string, string, string, string, string) {
 
 // validate fake request response map against their json schemas
 func validateMockRequestResponseFile(mockRequestResponseFile string, requestJsonSchemaFile string, responseJsonSchemaFile string) (RequestResponseMap, error) {
-	var err error = nil
-	var reqresmap RequestResponseMap = nil
+	var err error
+	var reqresmap RequestResponseMap
+
+	mock, err := ioutil.ReadFile(mockRequestResponseFile)
+	if err != nil {
+		return reqresmap, errors.New("Unable to read Mock Request Response File.")
+	}
+
+	req, err := ioutil.ReadFile(requestJsonSchemaFile)
+	if err != nil {
+		return reqresmap, errors.New("Unable to read Request Json Schema File.")
+	}
+
+	res, err := ioutil.ReadFile(responseJsonSchemaFile)
+	if err != nil {
+		return reqresmap, errors.New("Unable to read Response Json Schema File.")
+	}
+
+	fmt.Println(string(mock))
+	fmt.Println(string(req))
+	fmt.Println(string(res))
 
 	if nil == reqresmap {
 		err = errors.New("Unable to validate Mock Request Response File")
