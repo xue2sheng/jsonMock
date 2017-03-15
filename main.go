@@ -12,6 +12,7 @@ import (
 	"net/http/fcgi"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -348,28 +349,8 @@ func (c *customHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	debug := (r.URL.Query()[DebugParameter] != nil) || c.forcedDebug
 
-	query := ""
-	for k, v := range r.URL.Query() {
-		if k == DebugParameter {
-			continue
-		}
-		if len(query) > 0 {
-			query += "&"
-		}
-		if len(v) > 0 {
-			// just get the first one
-			query += k + "="
-			for i, w := range v {
-				if i > 0 {
-					query += ","
-				}
-				query += w
-			}
-		} else {
-			// is a Flag
-			query += k
-		}
-	}
+	// GET params as a string
+	query := QueryAsString(r)
 	if debug {
 		log.Println(query)
 	}
@@ -398,7 +379,9 @@ func (c *customHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					log.Print(err)
 				}
 			}
-
+			if len(query) > 0 {
+				key = "[" + query + "]" + key
+			}
 			value := (*c.rrmap)[key]
 			if len(value.response) > 0 {
 				w.Header().Set("Content-Lenghth", strconv.Itoa(len(value.response)))
@@ -427,4 +410,39 @@ func (c *customHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if debug {
 		log.Printf("Processed request of %d bytes", r.ContentLength)
 	}
+}
+
+// convert query parameter into a string to be used as index in the map
+func QueryAsString(r *http.Request) string {
+
+	// try to get IN ORDER all the parameters
+	keys := []string{}
+	for k, _ := range r.URL.Query() {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	query := ""
+	for _, k := range keys {
+		if k == DebugParameter {
+			continue
+		}
+		if len(query) > 0 {
+			query += "&"
+		}
+		v := r.URL.Query()[k]
+		if len(v) > 0 { // there might be repeated params
+			query += k + "="
+			for i, w := range v {
+				if i > 0 {
+					query += ","
+				}
+				query += w
+			}
+		} else {
+			// is a Flag
+			query += k
+		}
+	}
+	return query
 }
