@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -51,7 +52,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Println("Number of faked request/respnse: %d", len(reqresmap))
+	log.Printf("Number of faked request/response: %d", len(reqresmap))
 
 	listener, _ := net.Listen("tcp", host+":"+port) // see nginx.conf
 	if err := fcgi.Serve(listener, fcgiHandler); err != nil {
@@ -107,7 +108,7 @@ func cmdLine() (string, string, string, string, string) {
 // validate fake request response map against their json schemas
 func validateMockRequestResponseFile(mockRequestResponseFile string, requestJsonSchemaFile string, responseJsonSchemaFile string) (RequestResponseMap, error) {
 	var err error
-	var reqresmap RequestResponseMap
+	var reqresmap RequestResponseMap = make(map[string]string)
 
 	mock, err := ioutil.ReadFile(mockRequestResponseFile)
 	if err != nil {
@@ -217,6 +218,25 @@ func validateMockRequestResponseFile(mockRequestResponseFile string, requestJson
 			continue
 		}
 
+		// add pair to the map but after compacting those json
+		reqBuffer := new(bytes.Buffer)
+		err = json.Compact(reqBuffer, []byte(rr.Req))
+		if err != nil {
+			log.Fatal(err)
+			log.Println("This request will be ignored")
+			continue
+		}
+		resBuffer := new(bytes.Buffer)
+		err = json.Compact(resBuffer, []byte(rr.Res))
+		if err != nil {
+			log.Fatal(err)
+			log.Println("That response will be ignored")
+			continue
+		}
+		key := reqBuffer.String()
+		value := resBuffer.String()
+		reqresmap[key] = value
+
 	}
 	// read close bracket
 	_, err = dec.Token()
@@ -226,8 +246,8 @@ func validateMockRequestResponseFile(mockRequestResponseFile string, requestJson
 	}
 
 	// return result
-	if nil == reqresmap {
-		err = errors.New("Unable to validate Mock Request Response File")
+	if len(reqresmap) == 0 {
+		err = errors.New("Unable to validate any entry at Mock Request Response File")
 	}
 	return reqresmap, err
 }
