@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
+	"github.com/xeipuuv/gojsonschema"
 )
 
 // helper for HTTP handler queries
@@ -122,7 +123,21 @@ func validateMockRequestResponseFile(mockRequestResponseFile string, requestJson
 		return reqresmap, errors.New("Unable to read Response Json Schema File.")
 	}
 
-	fmt.Println(string(mock))
+	// validate the own mock input
+	mockJsonSchema := gojsonschema.NewStringLoader(`{ "$schema": "http://json-schema.org/draft-04/schema#", "title": "Mock Request Response Json Schema", "description": "version 0.0.1", "type": "object", "properties": { "map": { "type": "array", "items": { "type": "object", "properties": { "req": { "type": "object" }, "res": { "type": "object" } }, "required": [ "req","res" ] } } }, "required": [ "map" ] }`)
+	mockJson := gojsonschema.NewStringLoader(string(mock))
+	result, err := gojsonschema.Validate(mockJsonSchema, mockJson)
+	if err != nil {
+		return reqresmap, errors.New("Unable to process mock Json Schema")
+	}
+	if !result.Valid() {
+		log.Println("Mock Request Response File is not valid. See errors: ")
+		for _, desc := range result.Errors() {
+			log.Printf("- %s\n", desc)
+		}
+		return reqresmap, errors.New("Invalid Mock Request Response File")
+	}
+
 	fmt.Println(string(req))
 	fmt.Println(string(res))
 
