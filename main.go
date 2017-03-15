@@ -162,22 +162,16 @@ func validateMockRequestResponseFile(mockRequestResponseFile string, requestJson
 		}
 
 		// add pair to the map but after compacting those json
-		reqBuffer := new(bytes.Buffer)
-		err = json.Compact(reqBuffer, []byte(rr.Req))
+		key, err := compactJson([]byte(rr.Req))
 		if err != nil {
-			log.Fatal(err)
 			log.Println("This request will be ignored")
 			continue
 		}
-		resBuffer := new(bytes.Buffer)
-		err = json.Compact(resBuffer, []byte(rr.Res))
+		value, err := compactJson([]byte(rr.Res))
 		if err != nil {
-			log.Fatal(err)
 			log.Println("That response will be ignored")
 			continue
 		}
-		key := reqBuffer.String()
-		value := resBuffer.String()
 		reqresmap[key] = value
 
 	}
@@ -192,6 +186,18 @@ func validateMockRequestResponseFile(mockRequestResponseFile string, requestJson
 		err = errors.New("Unable to validate any entry at Mock Request Response File")
 	}
 	return reqresmap, err
+}
+
+// compact json to make it easy to look into the map for equivalent keys
+func compactJson(loose []byte) (string, error) {
+
+	compactedBuffer := new(bytes.Buffer)
+	err := json.Compact(compactedBuffer, loose)
+	if err != nil {
+		log.Fatal(err)
+		return "", err
+	}
+	return compactedBuffer.String(), nil
 }
 
 // validation request
@@ -313,6 +319,7 @@ func (c *customHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if r.ContentLength > 0 {
 
+		// get body request to process
 		body, err := ioutil.ReadAll(r.Body)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
@@ -325,11 +332,30 @@ func (c *customHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			log.Println("Body received: " + string(body))
 		}
 
-		if debug {
-			log.Printf("c.rrmap len %d", len(*c.rrmap))
+		// avoid processing before having booted up completely
+		if c.rrmap != nil && len(*c.rrmap) > 0 {
+
+			key, err := compactJson(body)
+			if err != nil {
+				if debug {
+					log.Print(err)
+				}
+			}
+
+			value := (*c.rrmap)[key]
+			w.Header().Set("Content-Lenghth", strconv.Itoa(len(value)))
+			w.Header().Set("Content-Type", "application/json")
+			if _, err := w.Write([]byte(value)); err != nil {
+				http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+				if debug {
+					log.Println(err)
+				}
+			}
 		}
 
 	} else {
+
+		// nothing to process
 		empty := "{}\n"
 		w.Header().Set("Content-Lenghth", strconv.Itoa(len(empty)))
 		w.Header().Set("Content-Type", "application/json")
@@ -344,21 +370,4 @@ func (c *customHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if debug {
 		log.Printf("Processed request of %d bytes", r.ContentLength)
 	}
-
-	/*
-		//parameter := r.URL.Query().Get(................)
-		//if decrypted, err := decrypt(key, parameter, debug); err != nil {
-		if debug {
-			//http.Error(w, err.Error(), http.StatusUnprocessableEntity)
-			if debug {
-				//log.Println(err)
-			}
-			//} else if err = grabImage(decrypted, w, debug); err != nil {
-		} else {
-			//http.Error(w, err.Error(), http.StatusConflict)
-			if debug {
-				//log.Println(err)
-			}
-		}
-	*/
 }
