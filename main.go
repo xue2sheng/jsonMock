@@ -19,13 +19,13 @@ import (
 	"github.com/xeipuuv/gojsonschema"
 )
 
-type Query struct {
-	param string `json:param,omitempty`
-	value string `json:value,omitempty`
+type ParamValue struct {
+	param string `json:"param"`
+	value string `json:"value"`
 }
 type QueryResponse struct {
+	query    []ParamValue
 	response string
-	query    []Query
 }
 
 // Request Response map
@@ -62,7 +62,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("Number of faked request/response: %d", len(reqresmap))
+	log.Printf("Number of fake request/response: %d", len(reqresmap))
 
 	mux := mux.NewRouter()
 	// bind cmux to mx(route) and rrmap to reqresmap
@@ -154,9 +154,9 @@ func validateMockRequestResponseFile(mockRequestResponseFile string, requestJson
 	resJsonSchema := gojsonschema.NewStringLoader(string(res))
 
 	type ReqRes struct {
-		Qry *[]Query `json:query`
-		Req string   `req:omitempty`
-		Res string   `res:omitempty`
+		Qry []ParamValue `json:"query,omitempty"`
+		Req string       `json:"req"`
+		Res string       `json:"res"`
 	}
 	dec := json.NewDecoder(strings.NewReader(string(mock)))
 
@@ -173,7 +173,7 @@ func validateMockRequestResponseFile(mockRequestResponseFile string, requestJson
 			log.Fatal(err)
 			return reqresmap, errors.New("Unable to process object at Mock Request Response File")
 		}
-		fmt.Printf("%v -> %v\n", rr.Req, rr.Res)
+		log.Printf("%v %v -> %v\n", rr.Qry, rr.Req, rr.Res)
 
 		if !validateRequest(reqJsonSchema, rr.Req) {
 			continue
@@ -309,22 +309,22 @@ func validateMockInput(mockRequestResponseFile string) ([]byte, error) {
       			},
       			"res": {
         			"type": "string"
-      		    },
+      		   },
                "query": {
-                    "type": "array",
-                    "items": {
-                       "type": "object",
-                       "properties": {
-                          "param": {
-                            "type": "string"
-                          },
-                          "value": {
-                            "type": "string"
-                          }
-                       }
+                 "type": "array",
+                 "items": {
+                    "type": "object",
+                    "properties": {
+                    "param": {
+                       "type": "string"
+                    },
+                    "value": {
+                       "type": "string"
                     }
-                  }
-             },
+                 }
+               }
+             }
+            },
     		"required": [
       			"req",
       			"res"
