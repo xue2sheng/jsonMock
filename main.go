@@ -169,7 +169,11 @@ func validateMockRequestResponseFile(mockRequestResponseFile string, requestJson
 			log.Fatal(err)
 			return reqresmap, errors.New("Unable to process object at Mock Request Response File")
 		}
-		log.Printf("%v %v -> %v\n", rr.Qry, rr.Req, rr.Res)
+		if len(rr.Qry) > 0 {
+			log.Printf("%v %v -> %v\n", rr.Qry, rr.Req, rr.Res)
+		} else {
+			log.Printf("%v -> %v\n", rr.Req, rr.Res)
+		}
 
 		if !validateRequest(reqJsonSchema, rr.Req) {
 			continue
@@ -184,6 +188,10 @@ func validateMockRequestResponseFile(mockRequestResponseFile string, requestJson
 		if err != nil {
 			log.Println("This request will be ignored")
 			continue
+		}
+		if len(rr.Qry) > 0 {
+			// key must take into account as well the provided query
+			key = "[" + rr.Qry + "]" + key
 		}
 		response, err := compactJson([]byte(rr.Res))
 		if err != nil {
@@ -339,6 +347,32 @@ func validateMockInput(mockRequestResponseFile string) ([]byte, error) {
 func (c *customHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	debug := (r.URL.Query()[DebugParameter] != nil) || c.forcedDebug
+
+	query := ""
+	for k, v := range r.URL.Query() {
+		if k == DebugParameter {
+			continue
+		}
+		if len(query) > 0 {
+			query += "&"
+		}
+		if len(v) > 0 {
+			// just get the first one
+			query += k + "="
+			for i, w := range v {
+				if i > 0 {
+					query += ","
+				}
+				query += w
+			}
+		} else {
+			// is a Flag
+			query += k
+		}
+	}
+	if debug {
+		log.Println(query)
+	}
 
 	if r.ContentLength > 0 {
 
