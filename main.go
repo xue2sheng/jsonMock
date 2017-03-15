@@ -105,27 +105,13 @@ func cmdLine() (string, string, string, string, string) {
 	return hostArg, portArg, mockRequestResponseFile, requestJsonSchemaFile, responseJsonSchemaFile
 }
 
-// validate fake request response map against their json schemas
-func validateMockRequestResponseFile(mockRequestResponseFile string, requestJsonSchemaFile string, responseJsonSchemaFile string) (RequestResponseMap, error) {
-	var err error
-	var reqresmap RequestResponseMap = make(map[string]string)
+// validate just mock input
+func validateMockInput(mockRequestResponseFile string) ([]byte, error) {
 
 	mock, err := ioutil.ReadFile(mockRequestResponseFile)
 	if err != nil {
 		log.Fatal(err)
-		return reqresmap, errors.New("Unable to read Mock Request Response File.")
-	}
-
-	req, err := ioutil.ReadFile(requestJsonSchemaFile)
-	if err != nil {
-		log.Fatal(err)
-		return reqresmap, errors.New("Unable to read Request Json Schema File.")
-	}
-
-	res, err := ioutil.ReadFile(responseJsonSchemaFile)
-	if err != nil {
-		log.Fatal(err)
-		return reqresmap, errors.New("Unable to read Response Json Schema File.")
+		return mock, errors.New("Unable to read Mock Request Response File.")
 	}
 
 	// validate the own mock input
@@ -150,17 +136,44 @@ func validateMockRequestResponseFile(mockRequestResponseFile string, requestJson
     		]
   		}
 	}`)
+
 	result, err := gojsonschema.Validate(mockJsonSchema, gojsonschema.NewStringLoader(string(mock)))
 	if err != nil {
 		log.Fatal(err)
-		return reqresmap, errors.New("Unable to process mock Json Schema")
+		return mock, errors.New("Unable to process mock Json Schema")
 	}
 	if !result.Valid() {
 		log.Println("Mock Request Response File is not valid. See errors: ")
 		for _, desc := range result.Errors() {
 			log.Printf("- %s\n", desc)
 		}
-		return reqresmap, errors.New("Invalid Mock Request Response File")
+		return mock, errors.New("Invalid Mock Request Response File")
+	}
+
+	// success
+	return mock, nil
+}
+
+// validate fake request response map against their json schemas
+func validateMockRequestResponseFile(mockRequestResponseFile string, requestJsonSchemaFile string, responseJsonSchemaFile string) (RequestResponseMap, error) {
+	var err error
+	var reqresmap RequestResponseMap = make(map[string]string)
+
+	mock, err := validateMockInput(mockRequestResponseFile)
+	if err != nil {
+		return reqresmap, err
+	}
+
+	req, err := ioutil.ReadFile(requestJsonSchemaFile)
+	if err != nil {
+		log.Fatal(err)
+		return reqresmap, errors.New("Unable to read Request Json Schema File.")
+	}
+
+	res, err := ioutil.ReadFile(responseJsonSchemaFile)
+	if err != nil {
+		log.Fatal(err)
+		return reqresmap, errors.New("Unable to read Response Json Schema File.")
 	}
 
 	reqJsonSchema := gojsonschema.NewStringLoader(string(req))
@@ -187,7 +200,7 @@ func validateMockRequestResponseFile(mockRequestResponseFile string, requestJson
 		fmt.Printf("%v -> %v\n", rr.Req, rr.Res)
 
 		// validation request
-		result, err = gojsonschema.Validate(reqJsonSchema, gojsonschema.NewStringLoader(string(rr.Req)))
+		result, err := gojsonschema.Validate(reqJsonSchema, gojsonschema.NewStringLoader(string(rr.Req)))
 		if err != nil {
 			log.Fatal(err)
 			log.Println("This request will be ignored")
