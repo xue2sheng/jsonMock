@@ -311,14 +311,38 @@ func (c *customHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	debug := (r.URL.Query()[DebugParameter] != nil)
 
-	message := "{ \"id\": 1 }"
-	w.Header().Set("Content-Lenghth", strconv.Itoa(len(message)))
-	w.Header().Set("Content-Type", "application/json")
-	if _, err := w.Write([]byte(message)); err != nil {
-		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
-		if debug {
-			log.Println(err)
+	if r.ContentLength > 0 {
+
+		body, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+			if debug {
+				log.Println(err)
+			}
 		}
+
+		if debug {
+			log.Println("Body received: " + string(body))
+		}
+
+		if debug {
+			log.Printf("c.rrmap len %d", len(*c.rrmap))
+		}
+
+	} else {
+		empty := "{}\n"
+		w.Header().Set("Content-Lenghth", strconv.Itoa(len(empty)))
+		w.Header().Set("Content-Type", "application/json")
+		if _, err := w.Write([]byte(empty)); err != nil {
+			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+			if debug {
+				log.Println(err)
+			}
+		}
+	}
+
+	if debug {
+		log.Printf("Processed request of %d bytes", r.ContentLength)
 	}
 
 	/*
