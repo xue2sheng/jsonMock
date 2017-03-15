@@ -19,12 +19,8 @@ import (
 	"github.com/xeipuuv/gojsonschema"
 )
 
-type ParamValue struct {
-	param string `json:"param"`
-	value string `json:"value"`
-}
 type QueryResponse struct {
-	query    []ParamValue
+	query    string
 	response string
 }
 
@@ -154,9 +150,9 @@ func validateMockRequestResponseFile(mockRequestResponseFile string, requestJson
 	resJsonSchema := gojsonschema.NewStringLoader(string(res))
 
 	type ReqRes struct {
-		Qry []ParamValue `json:"query,omitempty"`
-		Req string       `json:"req"`
-		Res string       `json:"res"`
+		Qry string `json:"query,omitempty"`
+		Req string `json:"req"`
+		Res string `json:"res"`
 	}
 	dec := json.NewDecoder(strings.NewReader(string(mock)))
 
@@ -311,20 +307,9 @@ func validateMockInput(mockRequestResponseFile string) ([]byte, error) {
         			"type": "string"
       		   },
                "query": {
-                 "type": "array",
-                 "items": {
-                    "type": "object",
-                    "properties": {
-                    "param": {
-                       "type": "string"
-                    },
-                    "value": {
-                       "type": "string"
-                    }
-                 }
+                    "type": "string"
                }
-             }
-            },
+             },
     		"required": [
       			"req",
       			"res"
