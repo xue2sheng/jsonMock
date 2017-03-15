@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -110,24 +111,47 @@ func validateMockRequestResponseFile(mockRequestResponseFile string, requestJson
 
 	mock, err := ioutil.ReadFile(mockRequestResponseFile)
 	if err != nil {
+		log.Fatal(err)
 		return reqresmap, errors.New("Unable to read Mock Request Response File.")
 	}
 
 	req, err := ioutil.ReadFile(requestJsonSchemaFile)
 	if err != nil {
+		log.Fatal(err)
 		return reqresmap, errors.New("Unable to read Request Json Schema File.")
 	}
 
 	res, err := ioutil.ReadFile(responseJsonSchemaFile)
 	if err != nil {
+		log.Fatal(err)
 		return reqresmap, errors.New("Unable to read Response Json Schema File.")
 	}
 
 	// validate the own mock input
-	mockJsonSchema := gojsonschema.NewStringLoader(`{ "$schema": "http://json-schema.org/draft-04/schema#", "title": "Mock Request Response Json Schema", "description": "version 0.0.1", "type": "object", "properties": { "map": { "type": "array", "items": { "type": "object", "properties": { "req": { "type": "object" }, "res": { "type": "object" } }, "required": [ "req","res" ] } } }, "required": [ "map" ] }`)
-	mockJson := gojsonschema.NewStringLoader(string(mock))
-	result, err := gojsonschema.Validate(mockJsonSchema, mockJson)
+	mockJsonSchema := gojsonschema.NewStringLoader(`{ 
+		"$schema": "http://json-schema.org/draft-04/schema#",
+  		"title": "Mock Request Response Json Schema",
+  		"description": "version 0.0.1",
+    	"type": "array",
+    	"items": {
+    		"type": "object",
+    		"properties": {
+      			"req": {
+        			"type": "string"
+      			},
+      			"res": {
+        			"type": "string"
+      			}
+    		},
+    		"required": [
+      			"req",
+      			"res"
+    		]
+  		}
+	}`)
+	result, err := gojsonschema.Validate(mockJsonSchema, gojsonschema.NewStringLoader(string(mock)))
 	if err != nil {
+		log.Fatal(err)
 		return reqresmap, errors.New("Unable to process mock Json Schema")
 	}
 	if !result.Valid() {
@@ -138,9 +162,70 @@ func validateMockRequestResponseFile(mockRequestResponseFile string, requestJson
 		return reqresmap, errors.New("Invalid Mock Request Response File")
 	}
 
-	fmt.Println(string(req))
-	fmt.Println(string(res))
+	reqJsonSchema := gojsonschema.NewStringLoader(string(req))
+	resJsonSchema := gojsonschema.NewStringLoader(string(res))
 
+	type ReqRes struct {
+		Req, Res string
+	}
+	dec := json.NewDecoder(strings.NewReader(string(mock)))
+	// read open bracket
+	_, err = dec.Token()
+	if err != nil {
+		log.Fatal(err)
+		return reqresmap, errors.New("Unable to process first token at Mock Request Response File")
+	}
+	// read object {"req": string, "res": string}
+	for dec.More() {
+		var rr ReqRes
+		err = dec.Decode(&rr)
+		if err != nil {
+			log.Fatal(err)
+			return reqresmap, errors.New("Unable to process object at Mock Request Response File")
+		}
+		fmt.Printf("%v -> %v\n", rr.Req, rr.Res)
+
+		// validation request
+		result, err = gojsonschema.Validate(reqJsonSchema, gojsonschema.NewStringLoader(string(rr.Req)))
+		if err != nil {
+			log.Fatal(err)
+			log.Println("This request will be ignored")
+			continue
+		}
+		if !result.Valid() {
+			log.Println("Request is not valid. See errors: ")
+			for _, desc := range result.Errors() {
+				log.Printf("- %s\n", desc)
+			}
+			log.Println("That request will be ignored")
+			continue
+		}
+
+		// validation response
+		result, err = gojsonschema.Validate(resJsonSchema, gojsonschema.NewStringLoader(string(rr.Res)))
+		if err != nil {
+			log.Fatal(err)
+			log.Println("This response will be ignored")
+			continue
+		}
+		if !result.Valid() {
+			log.Println("Response is not valid. See errors: ")
+			for _, desc := range result.Errors() {
+				log.Printf("- %s\n", desc)
+			}
+			log.Println("That response will be ignored")
+			continue
+		}
+
+	}
+	// read close bracket
+	_, err = dec.Token()
+	if err != nil {
+		log.Fatal(err)
+		return reqresmap, errors.New("Unable to process last token at Mock Request Response File")
+	}
+
+	// return result
 	if nil == reqresmap {
 		err = errors.New("Unable to validate Mock Request Response File")
 	}
