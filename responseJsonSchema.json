@@ -1,1 +1,15 @@
-{}
+{
+ "$schema": "http://json-schema.org/draft-04/schema#",
+ "title": "Mock Response Json Schema",
+ "description": "version 0.0.1",
+ "type": "object",
+ "properties": {
+   "id": {
+    "type": "string"
+   }
+  },
+  "required": [
+    "id"
+  ]
+ }
+}

@@ -1,1 +1,21 @@
-{}
+{
+ "$schema": "http://json-schema.org/draft-04/schema#",
+ "title": "Mock Request Json Schema",
+ "description": "version 0.0.1",
+ "type": "object",
+ "properties": {
+   "test": {
+    "type": "integer",
+    "minimum": 0,
+    "maximum": 1
+   },
+   "id": {
+    "type": "string"
+   }
+  },
+  "required": [
+    "test",
+    "id"
+  ]
+ }
+}
