@@ -220,10 +220,13 @@ func validateMockRequestResponseFile(mockRequestResponseFile string, requestJson
 
 // order query string by params in order to match ordered generated r.URL.Query() values later on
 func orderQueryByParams(query string) string {
-	if len(query) == 0 {
-		return ""
+	if len(query) > 0 {
+		list := strings.Split(query, "&")
+		if !sort.StringsAreSorted(list) {
+			sort.Strings(list)
+			query = strings.Join(list, "&")
+		}
 	}
-	log.Printf("%v", strings.Split(query, "&"))
 	return query
 }
 
