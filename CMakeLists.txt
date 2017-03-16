@@ -6,10 +6,5 @@ project(${LOCAL_CMAKE_PROJECT_NAME} NONE)
 ### pseudo install ###
 set(BINARY_INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR})
 
-### Code ###
+### Code & Test ###
 add_subdirectory("src")
-
-### Testing ###
-if(${LOCAL_CMAKE_PROJECT_NAME}_TEST)
-  add_subdirectory("test")
-endif()
