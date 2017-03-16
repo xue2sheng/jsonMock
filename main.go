@@ -16,6 +16,8 @@ import (
 	"strconv"
 	"strings"
 
+	"regexp"
+
 	"github.com/gorilla/mux"
 	"github.com/xeipuuv/gojsonschema"
 )
@@ -51,11 +53,9 @@ var ForcedDebug = false
 func main() {
 
 	host, port, mockRequestResponseFile, requestJsonSchemaFile, responseJsonSchemaFile, forcedDebug := cmdLine()
-	log.Printf("Launched "+host+":"+port+" MockRequestResponseFile="+mockRequestResponseFile+
-		" RequestJsonSchemaFile="+requestJsonSchemaFile+" ResponseJsonSchemaFile="+responseJsonSchemaFile+
-		" ForcedDebug=%t", forcedDebug)
+	log.Printf("Launched "+os.Args[0]+" "+host+" "+port+" "+mockRequestResponseFile+" "+requestJsonSchemaFile+" "+responseJsonSchemaFile+" %t", forcedDebug)
 
-	reqresmap, err := validateMockRequestResponseFile(mockRequestResponseFile, requestJsonSchemaFile, responseJsonSchemaFile)
+	reqresmap, err := validateMockRequestResponseFile(mockRequestResponseFile, requestJsonSchemaFile, responseJsonSchemaFile, forcedDebug)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -126,7 +126,10 @@ func cmdLine() (string, string, string, string, string, bool) {
 }
 
 // validate fake request response map against their json schemas
-func validateMockRequestResponseFile(mockRequestResponseFile string, requestJsonSchemaFile string, responseJsonSchemaFile string) (RequestResponseMap, error) {
+func validateMockRequestResponseFile(mockRequestResponseFile string, requestJsonSchemaFile string, responseJsonSchemaFile string, debug bool) (RequestResponseMap, error) {
+
+	// regexpr to detect 'debug' params
+	var debugRegexp = regexp.MustCompile("^" + DebugParameter + "")
 	var err error
 	var reqresmap RequestResponseMap = make(map[string]QueryResponse)
 
@@ -185,11 +188,13 @@ func validateMockRequestResponseFile(mockRequestResponseFile string, requestJson
 			continue
 		}
 
-		rr.Qry = orderQueryByParams(rr.Qry)
-		if len(rr.Qry) > 0 {
-			log.Printf("%v %v -> %v\n", rr.Qry, rr.request, rr.response)
-		} else {
-			log.Printf(" %v -> %v\n", rr.request, rr.response)
+		rr.Qry = orderQueryByParams(rr.Qry, debugRegexp)
+		if debug {
+			if len(rr.Qry) > 0 {
+				log.Printf("%v %v -> %v\n", rr.Qry, rr.request, rr.response)
+			} else {
+				log.Printf(" %v -> %v\n", rr.request, rr.response)
+			}
 		}
 
 		if !validateRequest(reqJsonSchema, rr.request) {
@@ -246,15 +251,28 @@ func toString(raw *json.RawMessage) (string, error) {
 }
 
 // order query string by params in order to match ordered generated r.URL.Query() values later on
-func orderQueryByParams(query string) string {
+func orderQueryByParams(query string, debugRegexp *regexp.Regexp) string {
 	if len(query) > 0 {
 		list := strings.Split(query, "&")
-		if !sort.StringsAreSorted(list) {
-			sort.Strings(list)
-			query = strings.Join(list, "&")
+		sort.Strings(list) // supposed short lists than don't care to be ordered in memory
+		var result string = ""
+		// remove debug parameters
+		for i, v := range list {
+			v = debugRegexp.ReplaceAllString(v, "")
+			if len(v) == 0 {
+				continue
+			} else if len(v) > 0 && v[0] == '=' {
+				continue
+			} else {
+				if len(result) > 0 {
+					result += "&"
+				}
+				result += list[i]
+			}
 		}
+		return result
 	}
-	return query
+	return ""
 }
 
 // compact json to make it easy to look into the map for equivalent keys

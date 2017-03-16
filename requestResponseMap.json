@@ -1,6 +1,7 @@
 [
 { "req": { "test": 1, "id": "1" }, "res": { "id": "1" } },
 { "req": { "test": 1, "id": "2" }, "res": { "id": "2" } },
-{ "query": "country=it&ip=10.0.0.3", "req": { "test": 1, "id": "3" }, "res": { "id": "3" } },
-{ "query": "ip=10.0.0.4&country=us", "req": { "test": 1, "id": "4" }, "res": { "id": "4" } }
+{ "query": "country=it&debug&ip=10.0.0.3", "req": { "test": 1, "id": "3" }, "res": { "id": "3" } },
+{ "query": "country=ad&debug=1&ip=10.0.0.4", "req": { "test": 1, "id": "4" }, "res": { "id": "4" } },
+{ "query": "ip=10.0.0.5&country=us", "req": { "test": 1, "id": "5" }, "res": { "id": "5" } }
 ]
