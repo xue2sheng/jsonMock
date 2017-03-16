@@ -170,6 +170,7 @@ func validateMockRequestResponseFile(mockRequestResponseFile string, requestJson
 			log.Fatal(err)
 			return reqresmap, errors.New("Unable to process object at Mock Request Response File")
 		}
+		rr.Qry = orderQueryByParams(rr.Qry)
 		if len(rr.Qry) > 0 {
 			log.Printf("%v %v -> %v\n", rr.Qry, rr.Req, rr.Res)
 		} else {
@@ -215,6 +216,15 @@ func validateMockRequestResponseFile(mockRequestResponseFile string, requestJson
 		err = errors.New("Unable to validate any entry at Mock Request Response File")
 	}
 	return reqresmap, err
+}
+
+// order query string by params in order to match ordered generated r.URL.Query() values later on
+func orderQueryByParams(query string) string {
+	if len(query) == 0 {
+		return ""
+	}
+	log.Printf("%v", strings.Split(query, "&"))
+	return query
 }
 
 // compact json to make it easy to look into the map for equivalent keys
