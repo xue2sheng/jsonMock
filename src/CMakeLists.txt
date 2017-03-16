@@ -1,0 +1,18 @@
+find_program(LOCAL_GO_COMPILER go HINTS /home /usr)
+message(STATUS "Go compiler: ${LOCAL_GO_COMPILER}")
+
+if(EXISTS ${LOCAL_GO_COMPILER})
+ add_custom_target(${LOCAL_CMAKE_PROJECT_NAME} ALL ${LOCAL_GO_COMPILER} build -o ${CMAKE_CURRENT_BINARY_DIR}/${LOCAL_CMAKE_PROJECT_NAME} ${CMAKE_CURRENT_SOURCE_DIR}/main.go
+ COMMAND cp -r ${CMAKE_CURRENT_SOURCE_DIR}/../data ${CMAKE_CURRENT_BINARY_DIR})
+
+ ### Only if this the principal project ###
+ if("${LOCAL_CMAKE_PROJECT_NAME}" STREQUAL "${CMAKE_PROJECT_NAME}")
+    add_custom_target(install${LOCAL_CMAKE_PROJECT_NAME} install ${CMAKE_CURRENT_BINARY_DIR}/${LOCAL_CMAKE_PROJECT_NAME} ${BINARY_INSTALL_DIR}
+    COMMAND cp -r ${CMAKE_CURRENT_BINARY_DIR}/data ${BINARY_INSTALL_DIR})
+ endif()
+
+else(EXISTS ${LOCAL_GO_COMPILER})
+
+  add_custom_target({LOCAL_CMAKE_PROJECT_NAME} echo "No golang compiler means no ${LOCAL_CMAKE_PROJECT_NAME}")
+
+endif(EXISTS ${LOCAL_GO_COMPILER})

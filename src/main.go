@@ -37,6 +37,9 @@ type customHandler struct {
 	forcedDebug bool
 }
 
+// Expected data Dir
+var DataDir = "data"
+
 // RequestJsonSchema to validate requests
 var RequestJsonSchemaFile = "requestJsonSchema.json"
 
@@ -77,9 +80,9 @@ func cmdLine() (string, string, string, string, string, bool) {
 
 	hostArg := "0.0.0.0"
 	portArg := "9797"
-	mockRequestResponseFile := filepath.Dir(os.Args[0]) + filepath.FromSlash("/") + MockRequestResponseFile
-	requestJsonSchemaFile := filepath.Dir(os.Args[0]) + filepath.FromSlash("/") + RequestJsonSchemaFile
-	responseJsonSchemaFile := filepath.Dir(os.Args[0]) + filepath.FromSlash("/") + ResponseJsonSchemaFile
+	mockRequestResponseFile := filepath.Dir(os.Args[0]) + filepath.FromSlash("/") + DataDir + filepath.FromSlash("/") + MockRequestResponseFile
+	requestJsonSchemaFile := filepath.Dir(os.Args[0]) + filepath.FromSlash("/") + DataDir + filepath.FromSlash("/") + RequestJsonSchemaFile
+	responseJsonSchemaFile := filepath.Dir(os.Args[0]) + filepath.FromSlash("/") + DataDir + filepath.FromSlash("/") + ResponseJsonSchemaFile
 	forcedDebug := ForcedDebug
 
 	cmd := strings.Join(os.Args, " ")
@@ -101,7 +104,6 @@ func cmdLine() (string, string, string, string, string, bool) {
 		fmt.Println()
 		os.Exit(0)
 	}
-
 	if len(os.Args) > 1 {
 		hostArg = os.Args[1]
 	}
