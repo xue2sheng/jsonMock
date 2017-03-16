@@ -151,9 +151,11 @@ func validateMockRequestResponseFile(mockRequestResponseFile string, requestJson
 	resJsonSchema := gojsonschema.NewStringLoader(string(res))
 
 	type ReqRes struct {
-		Qry string `json:"query,omitempty"`
-		Req string `json:"req"`
-		Res string `json:"res"`
+		Qry      string           `json:"query,omitempty"`
+		Req      *json.RawMessage `json:"req"`
+		Res      *json.RawMessage `json:"res"`
+		request  string
+		response string
 	}
 	dec := json.NewDecoder(strings.NewReader(string(mock)))
 
@@ -170,23 +172,35 @@ func validateMockRequestResponseFile(mockRequestResponseFile string, requestJson
 			log.Fatal(err)
 			return reqresmap, errors.New("Unable to process object at Mock Request Response File")
 		}
-		rr.Qry = orderQueryByParams(rr.Qry)
-		if len(rr.Qry) > 0 {
-			log.Printf("%v %v -> %v\n", rr.Qry, rr.Req, rr.Res)
-		} else {
-			log.Printf("%v -> %v\n", rr.Req, rr.Res)
-		}
 
-		if !validateRequest(reqJsonSchema, rr.Req) {
+		rr.request, err = toString(rr.Req)
+		if err != nil {
+			log.Println("Unable to process request object at Mock Request Response File")
 			continue
 		}
 
-		if !validateResponse(resJsonSchema, rr.Res) {
+		rr.response, err = toString(rr.Res)
+		if err != nil {
+			log.Println("Unable to process response object at Mock Request Response File")
+			continue
+		}
+
+		rr.Qry = orderQueryByParams(rr.Qry)
+		if len(rr.Qry) > 0 {
+			log.Printf("%v %v -> %v\n", rr.Qry, rr.request, rr.response)
+		} else {
+			log.Printf(" %v -> %v\n", rr.request, rr.response)
+		}
+
+		if !validateRequest(reqJsonSchema, rr.request) {
+			continue
+		}
+		if !validateResponse(resJsonSchema, rr.response) {
 			continue
 		}
 
 		// add pair to the map but after compacting those json
-		key, err := compactJson([]byte(rr.Req))
+		key, err := compactJson([]byte(rr.request))
 		if err != nil {
 			log.Println("This request will be ignored")
 			continue
@@ -195,7 +209,7 @@ func validateMockRequestResponseFile(mockRequestResponseFile string, requestJson
 			// key must take into account as well the provided query
 			key = "[" + rr.Qry + "]" + key
 		}
-		response, err := compactJson([]byte(rr.Res))
+		response, err := compactJson([]byte(rr.response))
 		if err != nil {
 			log.Println("That response will be ignored")
 			continue
@@ -203,7 +217,6 @@ func validateMockRequestResponseFile(mockRequestResponseFile string, requestJson
 		var value QueryResponse
 		value.response = response
 		reqresmap[key] = value
-
 	}
 
 	err = ignoreLastBracket(dec)
@@ -216,6 +229,20 @@ func validateMockRequestResponseFile(mockRequestResponseFile string, requestJson
 		err = errors.New("Unable to validate any entry at Mock Request Response File")
 	}
 	return reqresmap, err
+}
+
+// convert into an string
+func toString(raw *json.RawMessage) (string, error) {
+	if raw != nil {
+		noSoRaw, err := json.Marshal(raw)
+		if err != nil {
+			log.Fatal(err)
+			return "", err
+		}
+		return string(noSoRaw), nil
+	} else {
+		return "", nil
+	}
 }
 
 // order query string by params in order to match ordered generated r.URL.Query() values later on
@@ -259,7 +286,6 @@ func validateRequest(reqJsonSchema gojsonschema.JSONLoader, rrReq string) bool {
 		log.Println("That request will be ignored")
 		return false
 	}
-
 	return true
 }
 
@@ -323,10 +349,10 @@ func validateMockInput(mockRequestResponseFile string) ([]byte, error) {
     		"type": "object",
     		"properties": {
       			"req": {
-        			"type": "string"
+        			"type": "object"
       			},
       			"res": {
-        			"type": "string"
+        			"type": "object"
       		   },
                "query": {
                     "type": "string"
