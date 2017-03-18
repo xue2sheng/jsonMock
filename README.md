@@ -46,9 +46,9 @@ Nginx configuration for passing the POST body:
 
      fastcgi_param  REQUEST_BODY       $request_body;
 
-### Windows 10
+## Windows 10
 
-You'd better install **ninja build** command and added to *path enviroment variable*. This way you can build:
+You'd better install **ninja build** command and add it to the *path environment varible* at your *Powershell console*. This way you can build without Windows *make* warnings/errors:
 
      mkdir build
      cd build
