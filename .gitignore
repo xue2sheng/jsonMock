@@ -4,8 +4,16 @@
 # binaries
 main
 main_test
-jsonMock
-jsonMock_test
+main.test
+main.exe
+main_test.exe
+main.test.exe
+JsonMock
+JsonMock_test
+JsonMock.test
+JsonMock.exe
+JsonMock_test.exe
+JsonMock.test.exe
 build/
 
 # Compiled Object files, Static and Dynamic libs (Shared Objects)
