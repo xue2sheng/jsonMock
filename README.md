@@ -4,6 +4,8 @@ Simple FastCGI golang implemented Json Mock in order to 'fake' validated json re
 
 ![Mock Server](/images/mockServer.jpeg)
 
+Although the main development environment was **Linux** (debian/opensuse), some tips will be provided for your **Windows** and **Apple** boxes. Being a testing tool, we'd better try to be able to work on different operating systems.
+
 ## Dependencies
 
 Some *golang 3rd party libraries* have been used:
@@ -21,8 +23,9 @@ The query can be simulated using **curl**. For example, a typical call might be:
 
     curl -vvv -H 'Content-Type: application/json' -H 'Accept-Encoding: gzip' "http://0.0.0.0/testingEnd" -d '{"test": 1, "id": "1"}'
 
-
 ### NGINX configuration
+
+On **macOS** systems, it's highly likely that your *nginx* runs on a different port due to security reasons. For example, you might be ending at **8080** port. On that case, you could redirect that port to the usual **80** in oder to avoid having to invoke your test cases with *http://0.0.0.0:8080/testingEnd*.
 
 Being a FastCGI that processes request body and probably responses with a **gzipped** json, don't forget:
 
@@ -48,7 +51,7 @@ Nginx configuration for passing the POST body:
 
 ## Windows 10
 
-You'd better install **ninja build** command and add it to the *path environment varible* at your *Powershell console*. This way you can build without Windows *make* warnings/errors:
+By installing **ninja build** command and add it to the *path environment varible* at your *Powershell console*, you might spare yourself some pain in the neck to prevent usual Windows *make* warnings/errors:
 
      mkdir build
      cd build
