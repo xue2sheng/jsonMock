@@ -9,9 +9,9 @@ Simple FastCGI golang implemented Json Mock in order to 'fake' validated json re
 Some *golang 3rd party libraries* have been used:
 
     go get github.com/gorilla/mux
-	go get github.com/xeipuuv/gojsonschema
+    go get github.com/xeipuuv/gojsonschema
     
-[gorilla/mux](http://www.gorillatoolkit.org/pkg/mux) by [Diego Siquiera](https://github.com/DiSiqueira) makes it easier to serve *FastCGI* requests and [xeipuuv/gojsonschema](https://github.com/xeipuuv/gojsonschema) by [xeipuuv](https://github.com/xeipuuv/gojsonschema) simpilfies *json schema* validations.
+[gorilla/mux](http://www.gorillatoolkit.org/pkg/mux) by [Diego Siqueira](https://github.com/DiSiqueira) makes it easier to serve *FastCGI* requests and [xeipuuv/gojsonschema](https://github.com/xeipuuv/gojsonschema) by [xeipuuv](https://github.com/xeipuuv/gojsonschema) simpilfies *json schema* validations.
 
 ## Getting a simple mock server to simulate client's behaviour
 
@@ -52,7 +52,7 @@ You'd better install **ninja build** command and added to *path enviroment varia
 
      mkdir build
      cd build
-     cmake .. -G "Ninja" -DJsonMock_TEST
+     cmake .. -G "Ninja" -DJsonMock_TEST=1
      ninja
      ninja JsonMock.test
      
