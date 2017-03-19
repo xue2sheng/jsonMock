@@ -75,7 +75,7 @@ In case of **openSUSE**, only the previous configuration file should be updated 
 
 #### Using different Operating Systems 
 
-On **macOS** systems, it's highly likely that your *nginx* runs on a different port due to security reasons. For example, you might use **8080** port instead. On that case, you could redirect that port to the usual **80** in oder to avoid having to invoke your test cases with *http://0.0.0.0:8080/testingEnd*.
+On **macOS** systems, it's highly likely that your *nginx* runs on a different port due to security reasons. For example, you might use **8080** port instead. On that case, you could redirect that port to the usual **80** in oder to avoid having to invoke your test cases with *:8080/testingEnd*.
 
 On **Windows 10** systems, the situation is similar because there might be a system process using that **80** port already (check it out with *netstat* and *taskmanager*). So your *NGINX* configuration can look like:
 
