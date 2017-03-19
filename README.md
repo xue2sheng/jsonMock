@@ -51,7 +51,11 @@ Nginx configuration for passing the POST body:
 
 ## Windows 10
 
-By installing **ninja build** command and add it to the *path environment varible* at your *Powershell console*, you might spare yourself some pain in the neck to prevent usual Windows *make* warnings/errors:
+By installing **ninja build** command and add it to the *path environment varible* at your *Powershell console*, you might spare yourself some pain in the neck to prevent the following Windows *make* warnings/errors:
+
+     make: *** No targets specified and no makefile found.  Stop.
+
+So as a workaround, just use **ninja** to build all the binaries, provided you got already installed *go 1.8*:
 
      mkdir build
      cd build
@@ -59,7 +63,42 @@ By installing **ninja build** command and add it to the *path environment varibl
      ninja
      ninja JsonMock.test
 
-**NGINX** on Windows 10 won't be so fast as on Linux but the configuration it's very similar. Again like **macOS**, you'd better choose port *8080* for your local nginx.
+**NGINX** on Windows 10 won't be so fast as on Linux but its configuration is very similar. Again like **macOS**, you'd better choose port *8080* for your local nginx:
+
+     server {
+        listen       8080;
+        server_name  localhost;
+
+        #charset koi8-r;
+
+        #access_log  logs/host.access.log  main;
+
+        location / {
+            root   html;
+            index  index.html index.htm;
+        }
+
+	location /testingEnd {
+		fastcgi_pass   127.0.0.1:9797;
+		fastcgi_param  GATEWAY_INTERFACE  CGI/1.1;
+		fastcgi_param  SERVER_SOFTWARE    nginx;
+		fastcgi_param  QUERY_STRING       $query_string;
+		fastcgi_param  REQUEST_METHOD     $request_method;
+		fastcgi_param  REQUEST_BODY       $request_body;
+		fastcgi_param  CONTENT_TYPE       $content_type;
+		fastcgi_param  CONTENT_LENGTH     $content_length;
+		fastcgi_param  SCRIPT_FILENAME    $document_root$fastcgi_script_name;
+		fastcgi_param  SCRIPT_NAME        $fastcgi_script_name;
+		fastcgi_param  REQUEST_URI        $request_uri;
+		fastcgi_param  DOCUMENT_URI       $document_uri;
+		fastcgi_param  DOCUMENT_ROOT      $document_root;
+		fastcgi_param  SERVER_PROTOCOL    $server_protocol;
+		fastcgi_param  REMOTE_ADDR        $remote_addr;
+		fastcgi_param  REMOTE_PORT        $remote_port;
+		fastcgi_param  SERVER_ADDR        $server_addr;
+		fastcgi_param  SERVER_PORT        $server_port;
+		fastcgi_param  SERVER_NAME        $server_name;
+	}
 
 Regarding to the commandline **curl.exe** (to avoid Powershell *curl* alias), take into account to escape properly all *quotation* marks in the body message:
 
