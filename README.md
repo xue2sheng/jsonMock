@@ -15,6 +15,20 @@ Some *golang 3rd party libraries* have been used:
     
 [gorilla/mux](http://www.gorillatoolkit.org/pkg/mux) by [Diego Siqueira](https://github.com/DiSiqueira) makes it easier to serve *FastCGI* requests and [xeipuuv/gojsonschema](https://github.com/xeipuuv/gojsonschema) by [xeipuuv](https://github.com/xeipuuv/gojsonschema) simpilfies *json schema* validations.
 
+## CMake-based build
+
+Although usual **golang** commands like *go build* or *go test* can be directly used, a **CMake** project is provided in order to avoid the differencies between **Linux**, **macOS** and **Windows**.
+
+For example, to build & install everything, server and its tests, take advantage that all the different *make targets* are related. So if you ask for installing its tests, all the binaries will be generated:
+
+    mkdir build && cd build && cmake .. -DJsonMock_TEST=1 && make installJsonMock.test 
+
+But if you're only interested in the bare server in order to deploy it, then just execute the usual command:
+
+    mkdir build && cd build && cmake .. && make
+
+See **make help** at that *build* folder to get all the possibilities (all, JsonMock, JsonMock.test, installJsonMock, ...).
+
 ## Getting a simple mock server to simulate client's behaviour
 
 ### Curl queries
@@ -24,7 +38,6 @@ The query can be simulated using **curl**. For example, a typical call might be:
     curl -vvv -H 'Content-Type: application/json' -H 'Accept-Encoding: gzip' "http://0.0.0.0/testingEnd" -d '{"test": 1, "id": "1"}'
 
 ### NGINX configuration
-
 
 Being a FastCGI that processes request body and probably responses with a **gzipped** json, don't forget:
 
@@ -48,7 +61,19 @@ Nginx configuration for passing the POST body:
 
      fastcgi_param  REQUEST_BODY       $request_body;
 
-#### Using different ports
+#### Using different Linux distros
+
+If you happen to use **Debian**, its default *Nginx* configuration for *location* should be defined at:
+
+     /etc/nginx/sites-available/default
+
+But the usual *gzip* configuration should be defined at:
+
+     /etc/nginx/nginx.conf
+
+In case of **openSUSE**, only the previous configuration file should be updated with both *gzip* and *location* info.
+
+#### Using different Operating Systems 
 
 On **macOS** systems, it's highly likely that your *nginx* runs on a different port due to security reasons. For example, you might use **8080** port instead. On that case, you could redirect that port to the usual **80** in oder to avoid having to invoke your test cases with *http://0.0.0.0:8080/testingEnd*.
 
@@ -89,8 +114,7 @@ On **Windows 10** systems, the situation is similar because there might be a sys
 		fastcgi_param  SERVER_NAME        $server_name;
 	}
 
-
-## Windows 10
+## More Windows 10 specific tricks
 
 Typical **make** command on Windows could get confused (there can be serveral versions) and crash with the following error message:
 
@@ -108,6 +132,6 @@ If you *NGINX* configuration expects to get the JsonMock server running at **127
 
      .\JsonMock.exe 127.0.0.1 9797 C:\Users\user\Documents\Code\jsonMock\build\data\requestResponseMap.json c:\Users\user\Documents\Code\jsonMock\build\data\requestJsonSchema.json C:\Users\user\Documents\Code\jsonMock\build\data\responseJsonSchema.json true
 
-Regarding to commandline **curl.exe** invocation, avoiding Powershell *curl* alias, take into account to escape properly all *quotation* marks in the body message at your **Powershell** console:
+Regarding to commandline **curl.exe** invocation and avoiding Powershell *curl* alias, take into account to escape properly all *quotation* marks in the body message at your **Powershell** console:
 
      curl.exe -vvv -H 'Content-Type: application/json' -H 'Accept-Encoding: gzip' "http://localhost:8080/testingEnd" -d '{\"test\": 1, \"id\": \"1\"}'     
