@@ -58,4 +58,9 @@ By installing **ninja build** command and add it to the *path environment varibl
      cmake .. -G "Ninja" -DJsonMock_TEST=1
      ninja
      ninja JsonMock.test
-     
+
+**NGINX** on Windows 10 won't be so fast as on Linux but the configuration it's very similar. Again like **macOS**, you'd better choose port *8080* for your local nginx.
+
+Regarding to the commandline **curl.exe** (to avoid Powershell *curl* alias), take into account to escape properly all *quotation* marks in the body message:
+
+     curl.exe -vvv -H 'Content-Type: application/json' -H 'Accept-Encoding: gzip' "http://localhost:8080/testingEnd" -d '{\"test\": 1, \"id\": \"1\"}'     
