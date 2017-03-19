@@ -25,7 +25,6 @@ The query can be simulated using **curl**. For example, a typical call might be:
 
 ### NGINX configuration
 
-On **macOS** systems, it's highly likely that your *nginx* runs on a different port due to security reasons. For example, you might be ending at **8080** port. On that case, you could redirect that port to the usual **80** in oder to avoid having to invoke your test cases with *http://0.0.0.0:8080/testingEnd*.
 
 Being a FastCGI that processes request body and probably responses with a **gzipped** json, don't forget:
 
@@ -49,21 +48,11 @@ Nginx configuration for passing the POST body:
 
      fastcgi_param  REQUEST_BODY       $request_body;
 
-## Windows 10
+#### Using different ports
 
-By installing **ninja build** command and add it to the *path environment varible* at your *Powershell console*, you might spare yourself some pain in the neck to prevent the following Windows *make* warnings/errors:
+On **macOS** systems, it's highly likely that your *nginx* runs on a different port due to security reasons. For example, you might use **8080** port instead. On that case, you could redirect that port to the usual **80** in oder to avoid having to invoke your test cases with *http://0.0.0.0:8080/testingEnd*.
 
-     make: *** No targets specified and no makefile found.  Stop.
-
-So as a workaround, just use **ninja** to build all the binaries, provided you got already installed *go 1.8*:
-
-     mkdir build
-     cd build
-     cmake .. -G "Ninja" -DJsonMock_TEST=1
-     ninja
-     ninja JsonMock.test
-
-**NGINX** on Windows 10 won't be so fast as on Linux but its configuration is very similar. Again like **macOS**, you'd better choose port *8080* for your local nginx:
+On **Windows 10** systems, the situation is similar because there might be a system process using that **80** port already (check it out with *netstat* and *taskmanager*). So your *NGINX* configuration can look like:
 
      server {
         listen       8080;
@@ -100,6 +89,25 @@ So as a workaround, just use **ninja** to build all the binaries, provided you g
 		fastcgi_param  SERVER_NAME        $server_name;
 	}
 
-Regarding to the commandline **curl.exe** (to avoid Powershell *curl* alias), take into account to escape properly all *quotation* marks in the body message:
+
+## Windows 10
+
+Typical **make** command on Windows could get confused (there can be serveral versions) and crash with the following error message:
+
+     make: *** No targets specified and no makefile found.  Stop.
+
+By installing **ninja build** command and add it to the *path environment varible* at your *Powershell console*, you might spare yourself all that pain in the neck, provided you got already installed *go 1.8*:
+
+     mkdir build
+     cd build
+     cmake .. -G "Ninja" -DJsonMock_TEST=1
+     ninja
+     ninja JsonMock.test
+
+If you *NGINX* configuration expects to get the JsonMock server running at **127.0.0.1:9797**, don't forget to launch it that way:
+
+     .\JsonMock.exe 127.0.0.1 9797 C:\Users\user\Documents\Code\jsonMock\build\data\requestResponseMap.json c:\Users\user\Documents\Code\jsonMock\build\data\requestJsonSchema.json C:\Users\user\Documents\Code\jsonMock\build\data\responseJsonSchema.json true
+
+Regarding to commandline **curl.exe** invocation, avoiding Powershell *curl* alias, take into account to escape properly all *quotation* marks in the body message at your **Powershell** console:
 
      curl.exe -vvv -H 'Content-Type: application/json' -H 'Accept-Encoding: gzip' "http://localhost:8080/testingEnd" -d '{\"test\": 1, \"id\": \"1\"}'     
