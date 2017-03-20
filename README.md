@@ -14,6 +14,16 @@ This simple **Json Mock** aims at **validating** not only the *real* server agai
 
 Pay special attention to the fact that **Fake Queries** and all **Json Schemas** are just **JSON** files that can be externally validated with your favourite tools and be reused in your REAL code or in CLIENT test cases.
 
+## Example
+
+At [data](/data/) folder, a very simple example is included with its [Request](/data/requestJsonSchema.json) and [Response](/data/responseJsonSchema.json) *Json Schemas*. That way **fake data** at [Request/Response Map](/data/requestResponseMap.json) is **validated** even before launching the mock server; invalid entries will be ignored.
+
+Once the mock server got its **MAP** between validated requests and responses, requests works as **keys** and responses as **values** to be matched and answered back. Besides, those *entries* can include **query** information on GET query parameters that will take part into those **keys** after being ordered and filtered out. For example, **debug** parameters are filtered out:
+
+    { "query": "ip=10.0.0.5&country=us", "req": { "test": 1, "id": "5" }, "res": { "id": "5" } }
+
+As you can see **OPTIONAL** *"query"* elements are just bare queries so try to avoid superfluous blanks or exotic characters because there isn't too much validation on them. Regarding to *"req"* and *"res"* elementes, they must be json objects on their own and comply with their **Json Schemas**. 
+
 ## Dependencies
 
 Some *golang 3rd party libraries* have been used:
