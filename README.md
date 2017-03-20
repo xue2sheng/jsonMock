@@ -34,7 +34,9 @@ Don't hesitate to check them out with the command:
 
     ./JsonMock.test
 
-See *JsonMock.test -help* for further details, paying special attention to its "-queryStr" argument in order to **test your REAL server when you consider proper**.
+See *JsonMock.test -help* for further details, paying special attention to its "-queryStr" argument in order to **test your REAL server when you consider proper** or just avoid typical *macOS* or *Windows* issues with **NGINX** running at port *80*:
+
+    ./JsonMock.test -queryStr="http://0.0.0.0:8080/testingEnd?" -test.v
 
 ## Dependencies
 
