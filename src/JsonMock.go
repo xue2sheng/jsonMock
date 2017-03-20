@@ -451,6 +451,15 @@ func (c *customHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	debug := (r.URL.Query()[DebugParameter] != nil) || c.forcedDebug
 
+	if r.Method == http.MethodHead {
+		if debug {
+			log.Println("Requested Method HEAD. Probably a kind of ping")
+		}
+		http.NoBody.WriteTo(w)
+		r.Body.Close()
+		return
+	}
+
 	// GET params as a string
 	query := QueryAsString(r)
 	if debug {

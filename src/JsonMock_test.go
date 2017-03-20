@@ -18,26 +18,19 @@ func TestRequests(t *testing.T) {
 	fmt.Println(curlStr)
 
 	// call that fastcgi to checkout whether it's up or not
-	ping, err := http.Get(curlStr)
+	ping, err := http.Head(curlStr)
 	if err != nil {
-		fmt.Printf("Status Code %d\n", ping.StatusCode)
-		if ping.StatusCode == 200 || ping.StatusCode == 204 {
-			// depends on where data files are placed
-			dataFile := "./data/requestResponseMap.json"
-			if len(os.Args) > 2 {
-				dataFile = os.Args[2]
-			}
-			t.Log(dataFile)
-			fmt.Println(dataFile)
-
-			ping.Body.Close()
-		} else {
-			ping.Body.Close()
-			fmt.Printf("Status Code %d\n", ping.StatusCode)
-			t.Fatal("Unable to ping the server")
-			t.FailNow()
-		}
+		t.Error("Unable to request for HEAD info to the server.")
+		t.Fatal(err)
+		t.FailNow()
 	}
+	if ping.StatusCode != http.StatusOK {
+		fmt.Println(ping.Status)
+		t.Error("Probably FastCGI down.")
+		t.Fatal(ping.Status)
+		t.FailNow()
+	}
+
 	/*
 		// grab the real queries to launch
 		rrMap, err := ioutil.ReadFile(dataFile)
