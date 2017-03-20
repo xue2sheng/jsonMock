@@ -22,7 +22,7 @@ Once the mock server got its **MAP** between validated requests and responses, r
 
     { "query": "ip=10.0.0.5&country=us", "req": { "test": 1, "id": "5" }, "res": { "id": "5" } }
 
-As you can see **OPTIONAL** *"query"* elements are just bare queries so try to avoid superfluous blanks or exotic characters because there isn't too much validation on them. Regarding to *"req"* and *"res"* elementes, they must be json objects on their own and comply with their **Json Schemas**. 
+As you can see **OPTIONAL** *"query"* elements are just bare strings so try to avoid superfluous blanks or exotic characters because there isn't too much validation on them. Regarding to *"req"* and *"res"* elementes, they must be json objects on their own and comply with their **Json Schemas**. 
 
 ## Dependencies
 
