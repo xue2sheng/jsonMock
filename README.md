@@ -28,6 +28,14 @@ As you can see **OPTIONAL** *"query"* elements are just bare strings so try to a
 
 Launched in *debug* mode or including *debug* flag in *query* elements, it's possible to keep an eye on possible Json Schema validation issues.
 
+### Automatic check of all request/response pairs
+
+Don't hesitate to check them out with the command:
+
+    ./JsonMock.test
+
+See *JsonMock.test -help* for further details, paying special attention to its "-queryStr" argument in order to **test your REAL server when you consider proper**.
+
 ## Dependencies
 
 Some *golang 3rd party libraries* have been used:
