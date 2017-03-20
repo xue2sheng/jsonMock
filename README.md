@@ -12,7 +12,7 @@ This simple **Json Mock** aims at **validating** not only the *real* server agai
 
 ![Component Diagram](/images/component_diagram.png)
 
-Pay special attention to the fact that **Fake Queries** and all **Json Schemas** are just **JSON** files that can be externally validated with your favourites tool and be reused in your REAL code or in clients testing.
+Pay special attention to the fact that **Fake Queries** and all **Json Schemas** are just **JSON** files that can be externally validated with your favourite tools and be reused in your REAL code or in CLIENT test cases.
 
 ## Dependencies
 
