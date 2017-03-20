@@ -17,7 +17,7 @@ node "Json Schemas" {
 note bottom of [Response] : JSON files that can\nbe externally validated
 
 node "Logs" {
-[Mock Server] --> [Debug Mode] 
+[Mock Server] --> [Debug Mode]
 [Json Schema Validator] --> [Debug Mode]
 }
 
@@ -55,6 +55,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -63,11 +64,10 @@ import (
 	"net/http/fcgi"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
-
-	"regexp"
 
 	"github.com/gorilla/mux"
 	"github.com/xeipuuv/gojsonschema"
@@ -107,7 +107,8 @@ var ForcedDebug = false
 func main() {
 
 	host, port, mockRequestResponseFile, requestJsonSchemaFile, responseJsonSchemaFile, forcedDebug := cmdLine()
-	log.Printf("Launched "+os.Args[0]+" "+host+" "+port+" "+mockRequestResponseFile+" "+requestJsonSchemaFile+" "+responseJsonSchemaFile+" %t", forcedDebug)
+	log.Printf("Launched "+os.Args[0]+" -host="+host+" -port="+port+" -map="+mockRequestResponseFile+
+		" -req="+requestJsonSchemaFile+" -res="+responseJsonSchemaFile+" -debug=%t", forcedDebug)
 
 	reqresmap, err := validateMockRequestResponseFile(mockRequestResponseFile, requestJsonSchemaFile, responseJsonSchemaFile, forcedDebug)
 	if err != nil {
@@ -140,41 +141,30 @@ func cmdLine() (string, string, string, string, string, bool) {
 	if strings.Contains(cmd, " help") || strings.Contains(cmd, " -help") || strings.Contains(cmd, " --help") ||
 		strings.Contains(cmd, " -h") || strings.Contains(cmd, " /?") {
 		fmt.Println()
-		fmt.Println("Usage: " + os.Args[0] + " <host> <port> <MockRequestResponseFile> <RequestJsonSchema> <ResponseJsonSchema> <ForcedDebug>")
+		fmt.Println("Usage: " + os.Args[0] + " -host=<host> -port=<port> -map=<MockRequestResponseFile> -req=<RequestJsonSchema> -res=<ResponseJsonSchema> -debug=<ForcedDebug>")
 		fmt.Println()
 		fmt.Println("host:  Host name for this FastCGI process.   By default " + hostArg)
 		fmt.Println("port:  Port number for this FastCGI process. By default " + portArg)
 		fmt.Println()
-		fmt.Println("MockRequestResponseFile: Fake mapped request/response file. By default " + mockRequestResponseFile)
-		fmt.Println("RequestJsonSchemaFile:	  Json Schema to validate requests. By default " + requestJsonSchemaFile)
-		fmt.Println("ResponseJsonSchemaFile:  Json Schema to validate responses. By default " + responseJsonSchemaFile)
+		fmt.Println("map: Fake mapped request/response file. By default " + mockRequestResponseFile)
+		fmt.Println("req: Json Schema to validate requests.  By default " + requestJsonSchemaFile)
+		fmt.Println("res: Json Schema to validate responses. By default " + responseJsonSchemaFile)
 		fmt.Println()
-		fmt.Printf("ForcedDebug:  Flag to force debug mode. By default %b\n", forcedDebug)
+		fmt.Printf("debug:  Flag to force debug mode. By default %b\n", forcedDebug)
 		fmt.Println()
 		fmt.Println("Being a FastCGI, don't forget to properly configure NGINX.")
 		fmt.Println()
 		os.Exit(0)
 	}
-	if len(os.Args) > 1 {
-		hostArg = os.Args[1]
-	}
-	if len(os.Args) > 2 {
-		portArg = os.Args[2]
-	}
-	if len(os.Args) > 3 {
-		mockRequestResponseFile = os.Args[3]
-	}
-	if len(os.Args) > 4 {
-		requestJsonSchemaFile = os.Args[4]
-	}
-	if len(os.Args) > 5 {
-		responseJsonSchemaFile = os.Args[5]
-	}
-	if len(os.Args) > 6 {
-		if os.Args[6] == "ForcedDebug" || os.Args[6] == "forcedDebug" || os.Args[6] == "true" || os.Args[6] == "TRUE" || os.Args[6] == "True" {
-			forcedDebug = true
-		}
-	}
+
+	flag.StringVar(&hostArg, "host", hostArg, "Host name for this FastCGI process.")
+	flag.StringVar(&portArg, "port", portArg, "Port name for this FastCGI process.")
+	flag.StringVar(&mockRequestResponseFile, "map", mockRequestResponseFile, "Fake mapped request/response file.")
+	flag.StringVar(&requestJsonSchemaFile, "req", requestJsonSchemaFile, "Json Schema to validate requests.")
+	flag.StringVar(&responseJsonSchemaFile, "res", responseJsonSchemaFile, "Json Schema to validate responses.")
+	flag.BoolVar(&forcedDebug, "debug", forcedDebug, "Flag to force debug mode.")
+	flag.Parse()
+
 	return hostArg, portArg, mockRequestResponseFile, requestJsonSchemaFile, responseJsonSchemaFile, forcedDebug
 }
 
@@ -559,4 +549,3 @@ func QueryAsString(r *http.Request) string {
 	}
 	return query
 }
-

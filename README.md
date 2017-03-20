@@ -35,7 +35,7 @@ Some *golang 3rd party libraries* have been used:
 
 ## CMake-based build
 
-Although usual **golang** commands like *go build* or *go test* can be directly used, a **CMake** project is provided in order to avoid the differencies between **Linux**, **macOS** and **Windows**.
+Although usual **golang** commands like *go build* or *go test* can be directly used, a **CMake** project is provided in order to avoid typical differencies among **Linux**, **macOS** and **Windows**.
 
 For example, to build & install everything, server and its tests, take advantage that all the different *make targets* are related. So if you ask for installing its tests, all the binaries will be generated:
 
