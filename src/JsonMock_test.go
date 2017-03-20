@@ -90,13 +90,10 @@ func TestRequests(t *testing.T) {
 			continue
 		}
 
-		err = checkRequest(t, &rr)
-		if err != nil {
-			failedRequests++
-			t.Error(err)
-			continue
-		} else {
+		if checkRequest(t, &rr) {
 			successRequests++
+		} else {
+			failedRequests++
 		}
 	}
 
@@ -120,7 +117,7 @@ func TestRequests(t *testing.T) {
 }
 
 // process specif request
-func checkRequest(t *testing.T, rr *ReqRes) error {
+func checkRequest(t *testing.T, rr *ReqRes) bool {
 
 	query := queryStr
 	if len(rr.Qry) > 0 {
@@ -130,11 +127,13 @@ func checkRequest(t *testing.T, rr *ReqRes) error {
 	// create the request
 	req, err := toString(rr.Req)
 	if err != nil {
-		return err
+		t.Error(err)
+		return false
 	}
 	request, err := http.NewRequest("POST", query, strings.NewReader(req))
 	if err != nil {
-		return errors.New("[" + query + "]" + req + ": " + err.Error())
+		t.Error("[" + query + "]" + req + ": " + err.Error())
+		return false
 	}
 	//request.Header.Add("Accept-Encoding", "gzip")
 	request.Header.Add("Content-Type", "application/json")
@@ -144,27 +143,32 @@ func checkRequest(t *testing.T, rr *ReqRes) error {
 	client := &http.Client{}
 	response, err := client.Do(request)
 	if err != nil {
-		return errors.New("[" + query + "]" + req + ": " + err.Error())
+		t.Error("[" + query + "]" + req + ": " + err.Error())
+		return false
 	}
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusOK {
-		return errors.New("[" + query + "]" + req + ": " + response.Status)
+		t.Error("[" + query + "]" + req + ": " + response.Status)
+		return false
 	}
 
 	// double check the response
 	res, err := ioutil.ReadAll(response.Body)
 	if err != nil {
-		return errors.New("[" + query + "]" + req + ": " + err.Error())
+		t.Error("[" + query + "]" + req + ": " + err.Error())
+		return false
 	}
 	expected, err := toString(rr.Res)
 	if err != nil {
-		return errors.New("[" + query + "]" + req + ": " + err.Error())
+		t.Error("[" + query + "]" + req + ": " + err.Error())
+		return false
 	}
 	if strings.EqualFold(string(res), expected) {
 		// success
-		return nil
+		return true
 	} else {
-		return errors.New("[" + query + "]" + req + ": received->" + string(res) + " expected->" + expected)
+		t.Error("[" + query + "]" + req + ": received->" + string(res) + " expected->" + expected)
+		return false
 	}
 }
 
