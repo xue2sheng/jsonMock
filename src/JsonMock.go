@@ -85,6 +85,7 @@ type RequestResponseMap map[string]QueryResponse
 type customHandler struct {
 	cmux        http.Handler
 	rrmap       *RequestResponseMap
+	reqJS       *gojsonschema.JSONLoader
 	forcedDebug bool
 }
 
@@ -110,7 +111,7 @@ func main() {
 	log.Printf("Launched "+os.Args[0]+" -host="+host+" -port="+port+" -map="+mockRequestResponseFile+
 		" -req="+requestJsonSchemaFile+" -res="+responseJsonSchemaFile+" -debug=%t", forcedDebug)
 
-	reqresmap, err := validateMockRequestResponseFile(mockRequestResponseFile, requestJsonSchemaFile, responseJsonSchemaFile, forcedDebug)
+	reqresmap, reqJS, err := validateMockRequestResponseFile(mockRequestResponseFile, requestJsonSchemaFile, responseJsonSchemaFile, forcedDebug)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -118,7 +119,7 @@ func main() {
 
 	mux := mux.NewRouter()
 	// bind cmux to mx(route) and rrmap to reqresmap
-	fcgiHandler := &customHandler{cmux: mux, rrmap: &reqresmap, forcedDebug: forcedDebug}
+	fcgiHandler := &customHandler{cmux: mux, rrmap: &reqresmap, reqJS: &reqJS, forcedDebug: forcedDebug}
 	mux.Path("/").Handler(fcgiHandler)
 
 	listener, _ := net.Listen("tcp", host+":"+port) // see nginx.conf
@@ -169,31 +170,32 @@ func cmdLine() (string, string, string, string, string, bool) {
 }
 
 // validate fake request response map against their json schemas
-func validateMockRequestResponseFile(mockRequestResponseFile string, requestJsonSchemaFile string, responseJsonSchemaFile string, debug bool) (RequestResponseMap, error) {
+func validateMockRequestResponseFile(mockRequestResponseFile string, requestJsonSchemaFile string, responseJsonSchemaFile string, debug bool) (RequestResponseMap, gojsonschema.JSONLoader, error) {
 
 	// regexpr to detect 'debug' params
 	var debugRegexp = regexp.MustCompile("^" + DebugParameter + "")
 	var err error
 	var reqresmap RequestResponseMap = make(map[string]QueryResponse)
+	var reqJsonSchema gojsonschema.JSONLoader
 
 	mock, err := validateMockInput(mockRequestResponseFile)
 	if err != nil {
-		return reqresmap, err
+		return reqresmap, reqJsonSchema, err
 	}
 
 	req, err := ioutil.ReadFile(requestJsonSchemaFile)
 	if err != nil {
 		log.Fatal(err)
-		return reqresmap, errors.New("Unable to read Request Json Schema File.")
+		return reqresmap, reqJsonSchema, errors.New("Unable to read Request Json Schema File.")
 	}
 
 	res, err := ioutil.ReadFile(responseJsonSchemaFile)
 	if err != nil {
 		log.Fatal(err)
-		return reqresmap, errors.New("Unable to read Response Json Schema File.")
+		return reqresmap, reqJsonSchema, errors.New("Unable to read Response Json Schema File.")
 	}
 
-	reqJsonSchema := gojsonschema.NewStringLoader(string(req))
+	reqJsonSchema = gojsonschema.NewStringLoader(string(req))
 	resJsonSchema := gojsonschema.NewStringLoader(string(res))
 
 	type ReqRes struct {
@@ -207,7 +209,7 @@ func validateMockRequestResponseFile(mockRequestResponseFile string, requestJson
 
 	err = ignoreFirstBracket(dec)
 	if err != nil {
-		return reqresmap, err
+		return reqresmap, reqJsonSchema, err
 	}
 
 	// read object {"req": string, "res": string}
@@ -216,7 +218,7 @@ func validateMockRequestResponseFile(mockRequestResponseFile string, requestJson
 		err = dec.Decode(&rr)
 		if err != nil {
 			log.Fatal(err)
-			return reqresmap, errors.New("Unable to process object at Mock Request Response File")
+			return reqresmap, reqJsonSchema, errors.New("Unable to process object at Mock Request Response File")
 		}
 
 		rr.request, err = toString(rr.Req)
@@ -269,14 +271,14 @@ func validateMockRequestResponseFile(mockRequestResponseFile string, requestJson
 
 	err = ignoreLastBracket(dec)
 	if err != nil {
-		return reqresmap, err
+		return reqresmap, reqJsonSchema, err
 	}
 
 	// return result
 	if len(reqresmap) == 0 {
 		err = errors.New("Unable to validate any entry at Mock Request Response File")
 	}
-	return reqresmap, err
+	return reqresmap, reqJsonSchema, err
 }
 
 // convert into an string
@@ -473,33 +475,40 @@ func (c *customHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// avoid processing before having booted up completely
 		if c.rrmap != nil && len(*c.rrmap) > 0 {
 
-			key, err := compactJson(body)
-			if err != nil {
-				if debug {
-					log.Print(err)
-				}
-			}
-			if len(query) > 0 {
-				key = "[" + query + "]" + key
-			}
-			value := (*c.rrmap)[key]
-			if len(value.response) > 0 {
-				w.Header().Set("Content-Lenghth", strconv.Itoa(len(value.response)))
-				w.Header().Set("Content-Type", "application/json")
-				if _, err := w.Write([]byte(value.response)); err != nil {
-					http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+			// really not needed, no invalid request in our map, but it's good to provide some feedback to our logs
+			if validateRequest(*c.reqJS, string(body)) {
+
+				key, err := compactJson(body)
+				if err != nil {
 					if debug {
-						log.Println(err)
+						log.Print(err)
 					}
 				}
-				if debug {
-					log.Println("Sent back: " + value.response)
+				if len(query) > 0 {
+					key = "[" + query + "]" + key
 				}
+				value := (*c.rrmap)[key]
+				if len(value.response) > 0 {
+					w.Header().Set("Content-Lenghth", strconv.Itoa(len(value.response)))
+					w.Header().Set("Content-Type", "application/json")
+					if _, err := w.Write([]byte(value.response)); err != nil {
+						http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+						if debug {
+							log.Println(err)
+						}
+					}
+					if debug {
+						log.Println("Sent back: " + value.response)
+					}
+				} else {
+					http.Error(w, "key not found at internal cache", http.StatusNoContent)
+					if debug {
+						log.Println("key not found at internal cache")
+					}
+				}
+
 			} else {
-				http.Error(w, "key not found at internal cache", http.StatusNoContent)
-				if debug {
-					log.Println("key not found at internal cache")
-				}
+				http.Error(w, "Body Json Request doesn't comply with its expected Json Schema", http.StatusUnprocessableEntity)
 			}
 		}
 

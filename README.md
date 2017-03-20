@@ -22,7 +22,11 @@ Once the mock server got its **MAP** between validated requests and responses, r
 
     { "query": "ip=10.0.0.5&country=us", "req": { "test": 1, "id": "5" }, "res": { "id": "5" } }
 
-As you can see **OPTIONAL** *"query"* elements are just bare strings so try to avoid superfluous blanks or exotic characters because there isn't too much validation on them. Regarding to *"req"* and *"res"* elementes, they must be json objects on their own and comply with their **Json Schemas**. 
+As you can see **OPTIONAL** *"query"* elements are just bare strings so try to avoid superfluous blanks or exotic characters because there isn't too much validation on them. Regarding to *"req"* and *"res"* elementes, they must be json objects on their own and comply with their **Json Schemas**:
+
+    ./JsonMock -debug=true
+
+Launched in *debug* mode or including *debug* flag in *query* elements, it's possible to keep an eye on possible Json Schema validation issues.
 
 ## Dependencies
 
@@ -53,7 +57,7 @@ See **make help** at that *build* folder to get all the possibilities (all, Json
 
 The query can be simulated using **curl**. For example, a typical call might be:
 
-    curl -vvv -H 'Content-Type: application/json' -H 'Accept-Encoding: gzip' "http://0.0.0.0/testingEnd" -d '{"test": 1, "id": "1"}'
+    
 
 ### NGINX configuration
 
