@@ -8,10 +8,11 @@ Although the main development environment was **Linux** (debian/opensuse), some 
 
 ## Target
 
-This simple **Json Mock** aims at **validate** not only the *real* server against *fake* or *real* clients but also let us change our **code under testing** without modifing already validated **data** or **testing structure**:
+This simple **Json Mock** aims at **validating** not only the *real* server against *fake* or *real* clients but also let us change our **code under testing** without modifing already validated **data** or **testing structure**:
 
 ![Component Diagram](/images/component_diagram.png)
 
+Pay special attention to the fact that **Fake Queries** and all **Json Schemas** are just **JSON** files that can be externally validated with your favourites tool and be reused in your REAL code or in clients testing.
 
 ## Dependencies
 
