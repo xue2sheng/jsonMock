@@ -75,6 +75,10 @@ func TestRequests(t *testing.T) {
 		t.FailNow()
 	}
 
+	// resquests stats
+	failedRequests := 0
+	successRequests := 0
+
 	// read object {"req": string, "res": string}
 	for dec.More() {
 
@@ -86,7 +90,14 @@ func TestRequests(t *testing.T) {
 			continue
 		}
 
-		checkRequest(t, &rr)
+		err = checkRequest(t, &rr)
+		if err != nil {
+			failedRequests++
+			t.Error(err)
+			continue
+		} else {
+			successRequests++
+		}
 	}
 
 	err = ignoreLastBracket(dec)
@@ -96,10 +107,20 @@ func TestRequests(t *testing.T) {
 		t.FailNow()
 	}
 
+	t.Logf("Failed Requests: %d\n", failedRequests)
+	t.Logf("Success Requests: %d\n", successRequests)
+	t.Logf("Total requests sent: %d\n", failedRequests+successRequests)
+
+	if failedRequests > 0 {
+		t.Errorf("Failed Requests: %d\n", failedRequests)
+		t.Fatalf("Failed Requests: %d\n", failedRequests)
+		t.FailNow()
+	}
+
 }
 
 // process specif request
-func checkRequest(t *testing.T, rr *ReqRes) {
+func checkRequest(t *testing.T, rr *ReqRes) error {
 
 	query := queryStr
 	if len(rr.Qry) > 0 {
@@ -109,13 +130,11 @@ func checkRequest(t *testing.T, rr *ReqRes) {
 	// create the request
 	req, err := toString(rr.Req)
 	if err != nil {
-		t.Error(err)
-		return
+		return err
 	}
 	request, err := http.NewRequest("POST", query, strings.NewReader(req))
 	if err != nil {
-		t.Error(err)
-		return
+		return errors.New("[" + query + "]" + req + ": " + err.Error())
 	}
 	//request.Header.Add("Accept-Encoding", "gzip")
 	request.Header.Add("Content-Type", "application/json")
@@ -124,22 +143,29 @@ func checkRequest(t *testing.T, rr *ReqRes) {
 	// making the call
 	client := &http.Client{}
 	response, err := client.Do(request)
+	if err != nil {
+		return errors.New("[" + query + "]" + req + ": " + err.Error())
+	}
 	defer response.Body.Close()
-	t.Log(response.Status)
 	if response.StatusCode != http.StatusOK {
-		t.Error("Resquest Failed")
-		// TODO: do something
-		return
+		return errors.New("[" + query + "]" + req + ": " + response.Status)
 	}
 
 	// double check the response
 	res, err := ioutil.ReadAll(response.Body)
 	if err != nil {
-		t.Error(err)
-		return
+		return errors.New("[" + query + "]" + req + ": " + err.Error())
 	}
-	t.Log(string(res))
-
+	expected, err := toString(rr.Res)
+	if err != nil {
+		return errors.New("[" + query + "]" + req + ": " + err.Error())
+	}
+	if strings.EqualFold(string(res), expected) {
+		// success
+		return nil
+	} else {
+		return errors.New("[" + query + "]" + req + ": received->" + string(res) + " expected->" + expected)
+	}
 }
 
 // convert into an string
