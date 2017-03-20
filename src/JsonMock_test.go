@@ -1,56 +1,189 @@
 package main
 
 import (
-	"fmt"
+	"bytes"
+	"encoding/json"
+	"errors"
+	"flag"
+	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
 	"testing"
 )
+
+// Similar to the code under test
+var DataDir = "data"
+var MockRequestResponseFile = "requestResponseMap.json"
+
+// global due to lazyness
+var queryStr string
+var dataFile string
+
+// To process Json input file
+type ReqRes struct {
+	Qry string           `json:"query,omitempty"`
+	Req *json.RawMessage `json:"req"`
+	Res *json.RawMessage `json:"res"`
+}
+
+// read extra commandline arguments
+func init() {
+	flag.StringVar(&queryStr, "queryStr", "http://0.0.0.0/testingEnd?", "Testing End address, including 'debug' parameter if needed")
+	mockRequestResponseFile := filepath.Dir(os.Args[0]) + filepath.FromSlash("/") + DataDir + filepath.FromSlash("/") + MockRequestResponseFile
+	flag.StringVar(&dataFile, "dataFile", mockRequestResponseFile, "Data File with Request/Response map. No validation will be carried out.")
+	flag.Parse()
+}
 
 func TestRequests(t *testing.T) {
 
 	// depends on your NGINX fastcgi configuration
-	curlStr := "http://0.0.0.0/testingEnd?debug"
-	if len(os.Args) > 1 {
-		curlStr = os.Args[1]
-	}
-	t.Log(curlStr)
-	fmt.Println(curlStr)
+	t.Log("-queryStr=" + queryStr)
+	t.Log("-dataFile=" + dataFile)
 
 	// call that fastcgi to checkout whether it's up or not
-	ping, err := http.Head(curlStr)
+	// TODO: Check it out if GSN supports HEAD method
+	ping, err := http.Head(queryStr)
 	if err != nil {
 		t.Error("Unable to request for HEAD info to the server.")
 		t.Fatal(err)
 		t.FailNow()
 	}
 	if ping.StatusCode != http.StatusOK {
-		fmt.Println(ping.Status)
 		t.Error("Probably FastCGI down.")
 		t.Fatal(ping.Status)
 		t.FailNow()
 	}
 
-	/*
-		// grab the real queries to launch
-		rrMap, err := ioutil.ReadFile(dataFile)
+	// grab the real queries to launch
+	dataMap, err := ioutil.ReadFile(dataFile)
+	if err != nil {
+		t.Error("Unable to read Mock Request Response File.")
+		t.Fatal(err)
+		t.FailNow()
+	}
+
+	// process json input
+	dec := json.NewDecoder(strings.NewReader(string(dataMap)))
+	err = ignoreFirstBracket(dec)
+	if err != nil {
+		t.Error("Unable to process Mock Request Response File.")
+		t.Fatal(err)
+		t.FailNow()
+	}
+
+	// read object {"req": string, "res": string}
+	for dec.More() {
+
+		var rr ReqRes
+
+		err = dec.Decode(&rr)
 		if err != nil {
-			t.Error("Unable to read Mock Request Response File.")
-			t.Fatal(err)
-			t.FailNow()
+			t.Error("Unable to process Request Response object.")
+			continue
 		}
-		t.Logf("%d requests to try out\n", len(rrMap))
-		fmt.Printf("%d requests to try out\n", len(rrMap))
-	*/
-	/*
-		if response.ContentLength > 0 {
-			var responseInfo []byte
-			response.Body.Read(responseInfo)
-			t.Log(string(responseInfo))
-			fmt.Println(string(responseInfo))
-		} else {
-			t.Error("Empty Response Body")
-			t.FailNow()
+
+		checkRequest(t, &rr)
+	}
+
+	err = ignoreLastBracket(dec)
+	if err != nil {
+		t.Error("Unable to process Mock Request Response File.")
+		t.Fatal(err)
+		t.FailNow()
+	}
+
+}
+
+// process specif request
+func checkRequest(t *testing.T, rr *ReqRes) {
+
+	query := queryStr
+	if len(rr.Qry) > 0 {
+		query += rr.Qry
+	}
+
+	// create the request
+	req, err := toString(rr.Req)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	request, err := http.NewRequest("POST", query, strings.NewReader(req))
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	//request.Header.Add("Accept-Encoding", "gzip")
+	request.Header.Add("Content-Type", "application/json")
+	request.Header.Add("Content-Length", strconv.Itoa(len(req)))
+
+	// making the call
+	client := &http.Client{}
+	response, err := client.Do(request)
+	defer response.Body.Close()
+	t.Log(response.Status)
+	if response.StatusCode != http.StatusOK {
+		t.Error("Resquest Failed")
+		// TODO: do something
+		return
+	}
+
+	// double check the response
+	res, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	t.Log(string(res))
+
+}
+
+// convert into an string
+func toString(raw *json.RawMessage) (string, error) {
+	if raw != nil {
+		noSoRaw, err := json.Marshal(raw)
+		if err != nil {
+			log.Fatal(err)
+			return "", err
 		}
-	*/
+		return string(noSoRaw), nil
+	} else {
+		return "", nil
+	}
+}
+
+// ignore first bracket when json mock Request Response file is decoded
+func ignoreFirstBracket(dec *json.Decoder) error {
+	_, err := dec.Token()
+	if err != nil {
+		log.Fatal(err)
+		return errors.New("Unable to process first token at Mock Request Response File")
+	}
+	return nil
+}
+
+// ignore last bracket when json mock Request Response file is decoded
+func ignoreLastBracket(dec *json.Decoder) error {
+	_, err := dec.Token()
+	if err != nil {
+		log.Fatal(err)
+		return errors.New("Unable to process last token at Mock Request Response File")
+	}
+	return nil
+}
+
+// compact json to make it easy to look into the map for equivalent keys
+func compactJson(loose []byte) (string, error) {
+
+	compactedBuffer := new(bytes.Buffer)
+	err := json.Compact(compactedBuffer, loose)
+	if err != nil {
+		log.Fatal(err)
+		return "", err
+	}
+	return compactedBuffer.String(), nil
 }
