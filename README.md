@@ -6,6 +6,13 @@ Simple FastCGI golang implemented Json Mock in order to 'fake' validated json re
 
 Although the main development environment was **Linux** (debian/opensuse), some tips will be provided for your **Windows** and **Apple** boxes. Being a testing tool, we'd better try to be able to work on different operating systems.
 
+## Target
+
+This simple **Json Mock** aims at **validate** not only the *real* server against *fake* or *real* clients but also let us change our **code under testing** without modifing already validated **data** or **testing structure**:
+
+![Component Diagram](/images/component_diagram.png)
+
+
 ## Dependencies
 
 Some *golang 3rd party libraries* have been used:
@@ -135,3 +142,4 @@ If you *NGINX* configuration expects to get the JsonMock server running at **127
 Regarding to commandline **curl.exe** invocation and avoiding Powershell *curl* alias, take into account to escape properly all *quotation* marks in the body message at your **Powershell** console:
 
      curl.exe -vvv -H 'Content-Type: application/json' -H 'Accept-Encoding: gzip' "http://localhost:8080/testingEnd" -d '{\"test\": 1, \"id\": \"1\"}'     
+

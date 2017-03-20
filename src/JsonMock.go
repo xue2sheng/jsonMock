@@ -1,3 +1,54 @@
+/**
+
+@startuml component_diagram.png
+
+package "Json Mock" {
+FastCGI - [Mock Server]
+File - [Json Schema Validator]
+[Json Schema Validator] --> [Mock Server] : Req/Res Schemas\nValidated fake data
+}
+
+node "Json Schemas" {
+[Request] --> File
+[Response] --> File
+[Data] --> File
+}
+
+note bottom of [Response] : JSON files that can\nbe externally validated
+
+node "Logs" {
+[Mock Server] --> [Debug Mode] 
+[Json Schema Validator] --> [Debug Mode]
+}
+
+note right of [Debug Mode] : Provides insights on\nREAL or FAKE client requests
+
+database "Fake Queries" {
+[Map: Query+Request -> Response] --> File
+}
+note bottom of [Map: Query+Request -> Response] : JSON files that can\nbe externally validated
+
+
+package "HTTP Server" {
+HTTP - [NGINX]
+[NGINX] --> FastCGI : Qry/Req
+FastCGI --> [NGINX] : Validated Res
+}
+
+note right of [NGINX]: Can be reconfigured\nto point to the REAL FastCGI\nto validate REAL deployments
+
+cloud "Clients" {
+[Client apps] --> HTTP
+[Curl commandline] --> HTTP
+[Multithreaded\ntesting\nprograms] --> HTTP
+}
+
+note bottom of [Client apps] : Could be REAL or FAKE apps
+
+@enduml
+
+**/
+
 package main
 
 import (
@@ -508,3 +559,4 @@ func QueryAsString(r *http.Request) string {
 	}
 	return query
 }
+
