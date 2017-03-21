@@ -38,7 +38,7 @@ See *JsonMock.test -help* for further details, paying special attention to its "
 
     ./JsonMock.test -queryStr="http://0.0.0.0:8080/testingEnd?" -test.v
 
-That test will try to use all your *CPU's* and to take advantage from *atomic* instructions so don't run it on a critic system where other processes shouldn't be impacted on their performance.
+That test will try to use all your *CPU's* and to take advantage from *atomic* instructions so don't run it on a critical system where other processes shouldn't be impacted on their performance.
 
 ## Dependencies
 
