@@ -22,6 +22,7 @@ var MockRequestResponseFile = "requestResponseMap.json"
 // global due to lazyness
 var queryStr string
 var dataFile string
+var checkUp bool
 
 // To process Json input file
 type ReqRes struct {
@@ -35,6 +36,7 @@ func init() {
 	flag.StringVar(&queryStr, "queryStr", "http://0.0.0.0/testingEnd?", "Testing End address, including 'debug' parameter if needed")
 	mockRequestResponseFile := filepath.Dir(os.Args[0]) + filepath.FromSlash("/") + DataDir + filepath.FromSlash("/") + MockRequestResponseFile
 	flag.StringVar(&dataFile, "dataFile", mockRequestResponseFile, "Data File with Request/Response map. No validation will be carried out.")
+	flag.BoolVar(&checkUp, "checkUp", true, "Check it out that FastCGI is up and running through a HEAD request.")
 	flag.Parse()
 }
 
@@ -42,20 +44,25 @@ func TestRequests(t *testing.T) {
 
 	// depends on your NGINX fastcgi configuration
 	t.Log("-queryStr=" + queryStr)
+	// depends on your test configuration
 	t.Log("-dataFile=" + dataFile)
+	// depends if the server under test supports HEAD queries
+	t.Logf("-checkUp=%t\n", checkUp)
 
 	// call that fastcgi to checkout whether it's up or not
 	// TODO: Check it out if GSN supports HEAD method
-	ping, err := http.Head(queryStr)
-	if err != nil {
-		t.Error("Unable to request for HEAD info to the server.")
-		t.Fatal(err)
-		t.FailNow()
-	}
-	if ping.StatusCode != http.StatusOK {
-		t.Error("Probably FastCGI down.")
-		t.Fatal(ping.Status)
-		t.FailNow()
+	if checkUp {
+		ping, err := http.Head(queryStr)
+		if err != nil {
+			t.Error("Unable to request for HEAD info to the server.")
+			t.Fatal(err)
+			t.FailNow()
+		}
+		if ping.StatusCode != http.StatusOK {
+			t.Error("Probably FastCGI down.")
+			t.Fatal(ping.Status)
+			t.FailNow()
+		}
 	}
 
 	// grab the real queries to launch
