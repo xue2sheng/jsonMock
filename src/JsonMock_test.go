@@ -2,9 +2,11 @@ package main
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"errors"
 	"flag"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -23,6 +25,7 @@ var MockRequestResponseFile = "requestResponseMap.json"
 var queryStr string
 var dataFile string
 var checkUp bool
+var gzipOn bool
 
 // To process Json input file
 type ReqRes struct {
@@ -37,6 +40,7 @@ func init() {
 	mockRequestResponseFile := filepath.Dir(os.Args[0]) + filepath.FromSlash("/") + DataDir + filepath.FromSlash("/") + MockRequestResponseFile
 	flag.StringVar(&dataFile, "dataFile", mockRequestResponseFile, "Data File with Request/Response map. No validation will be carried out.")
 	flag.BoolVar(&checkUp, "checkUp", true, "Check it out that FastCGI is up and running through a HEAD request.")
+	flag.BoolVar(&gzipOn, "gzipOn", false, "Activate GZIP by adding specific header to the request. That might make all tests fail")
 	flag.Parse()
 }
 
@@ -50,7 +54,6 @@ func TestRequests(t *testing.T) {
 	t.Logf("-checkUp=%t\n", checkUp)
 
 	// call that fastcgi to checkout whether it's up or not
-	// TODO: Check it out if GSN supports HEAD method
 	if checkUp {
 		ping, err := http.Head(queryStr)
 		if err != nil {
@@ -142,7 +145,9 @@ func checkRequest(t *testing.T, rr *ReqRes) bool {
 		t.Error("[" + query + "]" + req + ": " + err.Error())
 		return false
 	}
-	//request.Header.Add("Accept-Encoding", "gzip")
+	if gzipOn {
+		request.Header.Add("Accept-Encoding", "gzip")
+	}
 	request.Header.Add("Content-Type", "application/json")
 	request.Header.Add("Content-Length", strconv.Itoa(len(req)))
 
@@ -159,24 +164,36 @@ func checkRequest(t *testing.T, rr *ReqRes) bool {
 		return false
 	}
 
-	// double check the response
-	res, err := ioutil.ReadAll(response.Body)
+	// double check the response depending on GZIP usage
+	var reader io.ReadCloser
+	switch response.Header.Get("Content-Encoding") {
+	case "gzip":
+		reader, err = gzip.NewReader(response.Body)
+		defer reader.Close()
+	default:
+		reader = response.Body
+	}
+	res, err := ioutil.ReadAll(reader)
 	if err != nil {
 		t.Error("[" + query + "]" + req + ": " + err.Error())
 		return false
 	}
+	responseStr := string(res)
+
+	// what it's read from the file
 	expected, err := toString(rr.Res)
 	if err != nil {
 		t.Error("[" + query + "]" + req + ": " + err.Error())
 		return false
 	}
-	if strings.EqualFold(string(res), expected) {
+	if strings.EqualFold(responseStr, expected) {
 		// success
 		return true
-	} else {
-		t.Error("[" + query + "]" + req + ": received->" + string(res) + " expected->" + expected)
-		return false
 	}
+
+	// failure
+	t.Error("[" + query + "]" + req + ": received->" + responseStr + " expected->" + expected)
+	return false
 }
 
 // convert into an string
