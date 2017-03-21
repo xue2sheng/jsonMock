@@ -28,7 +28,7 @@ As you can see **OPTIONAL** *"query"* elements are just bare strings so try to a
 
 Launched in *debug* mode or including *debug* flag in *query* elements, it's possible to keep an eye on possible Json Schema validation issues.
 
-### Automatic Multhreaded check of all request/response pairs
+### Automatic Multithreaded check of all request/response pairs
 
 Don't hesitate to check them out with the command:
 
