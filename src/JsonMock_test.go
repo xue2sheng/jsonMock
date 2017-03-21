@@ -12,12 +12,15 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 )
 
-// Similar to the code under test
+// Already declade at JsonMock
 var DataDir = "data"
 var MockRequestResponseFile = "requestResponseMap.json"
 
@@ -36,11 +39,14 @@ type ReqRes struct {
 
 // read extra commandline arguments
 func init() {
+
+	runtime.GOMAXPROCS(runtime.NumCPU())
+
 	flag.StringVar(&queryStr, "queryStr", "http://0.0.0.0/testingEnd?", "Testing End address, including 'debug' parameter if needed")
 	mockRequestResponseFile := filepath.Dir(os.Args[0]) + filepath.FromSlash("/") + DataDir + filepath.FromSlash("/") + MockRequestResponseFile
 	flag.StringVar(&dataFile, "dataFile", mockRequestResponseFile, "Data File with Request/Response map. No validation will be carried out.")
 	flag.BoolVar(&checkUp, "checkUp", true, "Check it out that FastCGI is up and running through a HEAD request.")
-	flag.BoolVar(&gzipOn, "gzipOn", false, "Activate GZIP by adding specific header to the request. That might make all tests fail")
+	flag.BoolVar(&gzipOn, "gzipOn", true, "Activate GZIP by adding specific header to the request. That might make all tests fail")
 	flag.Parse()
 }
 
@@ -86,8 +92,11 @@ func TestRequests(t *testing.T) {
 	}
 
 	// resquests stats
-	failedRequests := 0
-	successRequests := 0
+	var failedRequests uint64
+	var successRequests uint64
+
+	// Get multithread ready
+	var wg sync.WaitGroup
 
 	// read object {"req": string, "res": string}
 	for dec.More() {
@@ -100,11 +109,9 @@ func TestRequests(t *testing.T) {
 			continue
 		}
 
-		if checkRequest(t, &rr) {
-			successRequests++
-		} else {
-			failedRequests++
-		}
+		// launch an extra goroutine
+		wg.Add(1)
+		go checkRequest(t, &rr, &wg, &failedRequests, &successRequests)
 	}
 
 	err = ignoreLastBracket(dec)
@@ -114,20 +121,28 @@ func TestRequests(t *testing.T) {
 		t.FailNow()
 	}
 
-	t.Logf("Failed Requests: %d\n", failedRequests)
-	t.Logf("Success Requests: %d\n", successRequests)
-	t.Logf("Total requests sent: %d\n", failedRequests+successRequests)
+	// Wait for all gorutines to finish
+	wg.Wait()
+
+	failed := atomic.LoadUint64(&failedRequests)
+	success := atomic.LoadUint64(&successRequests)
+
+	t.Logf("Failed Requests: %d\n", failed)
+	t.Logf("Success Requests: %d\n", success)
+	t.Logf("Total requests sent: %d\n", failed+success)
 
 	if failedRequests > 0 {
-		t.Errorf("Failed Requests: %d\n", failedRequests)
-		t.Fatalf("Failed Requests: %d\n", failedRequests)
+		t.Errorf("Failed Requests: %d\n", failed)
+		t.Fatalf("Failed Requests: %d\n", failed)
 		t.FailNow()
 	}
 
 }
 
 // process specif request
-func checkRequest(t *testing.T, rr *ReqRes) bool {
+func checkRequest(t *testing.T, rr *ReqRes, wg *sync.WaitGroup, failed *uint64, success *uint64) {
+
+	defer (*wg).Done()
 
 	query := queryStr
 	if len(rr.Qry) > 0 {
@@ -138,12 +153,14 @@ func checkRequest(t *testing.T, rr *ReqRes) bool {
 	req, err := toString(rr.Req)
 	if err != nil {
 		t.Error(err)
-		return false
+		atomic.AddUint64(failed, 1)
+		return
 	}
 	request, err := http.NewRequest("POST", query, strings.NewReader(req))
 	if err != nil {
 		t.Error("[" + query + "]" + req + ": " + err.Error())
-		return false
+		atomic.AddUint64(failed, 1)
+		return
 	}
 	if gzipOn {
 		request.Header.Add("Accept-Encoding", "gzip")
@@ -156,12 +173,14 @@ func checkRequest(t *testing.T, rr *ReqRes) bool {
 	response, err := client.Do(request)
 	if err != nil {
 		t.Error("[" + query + "]" + req + ": " + err.Error())
-		return false
+		atomic.AddUint64(failed, 1)
+		return
 	}
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusOK {
 		t.Error("[" + query + "]" + req + ": " + response.Status)
-		return false
+		atomic.AddUint64(failed, 1)
+		return
 	}
 
 	// double check the response depending on GZIP usage
@@ -176,7 +195,8 @@ func checkRequest(t *testing.T, rr *ReqRes) bool {
 	res, err := ioutil.ReadAll(reader)
 	if err != nil {
 		t.Error("[" + query + "]" + req + ": " + err.Error())
-		return false
+		atomic.AddUint64(failed, 1)
+		return
 	}
 	responseStr := string(res)
 
@@ -184,16 +204,19 @@ func checkRequest(t *testing.T, rr *ReqRes) bool {
 	expected, err := toString(rr.Res)
 	if err != nil {
 		t.Error("[" + query + "]" + req + ": " + err.Error())
-		return false
+		atomic.AddUint64(failed, 1)
+		return
 	}
 	if strings.EqualFold(responseStr, expected) {
 		// success
-		return true
+		atomic.AddUint64(success, 1)
+		return
 	}
 
 	// failure
 	t.Error("[" + query + "]" + req + ": received->" + responseStr + " expected->" + expected)
-	return false
+	atomic.AddUint64(failed, 1)
+	return
 }
 
 // convert into an string

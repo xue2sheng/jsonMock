@@ -28,15 +28,17 @@ As you can see **OPTIONAL** *"query"* elements are just bare strings so try to a
 
 Launched in *debug* mode or including *debug* flag in *query* elements, it's possible to keep an eye on possible Json Schema validation issues.
 
-### Automatic check of all request/response pairs
+### Automatic Multhreaded check of all request/response pairs
 
 Don't hesitate to check them out with the command:
 
     ./JsonMock.test
 
-See *JsonMock.test -help* for further details, paying special attention to its "-queryStr" argument in order to **test your REAL server when you consider proper** or just avoid typical *macOS* or *Windows* issues with **NGINX** running at port *80*:
+See *JsonMock.test -help* for further details, paying special attention to its "-gzipOn" and "-queryStr" arguments in order to **test your REAL server when you consider proper** or just avoid typical *macOS* or *Windows* issues with **NGINX** running at port *80*:
 
     ./JsonMock.test -queryStr="http://0.0.0.0:8080/testingEnd?" -test.v
+
+That test will try to use all your *CPU's* and to take advantage from *atomic* instructions so don't run it on a critic system where other processes shouldn't be impacted on their performance.
 
 ## Dependencies
 
