@@ -6,10 +6,12 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -50,6 +52,15 @@ func init() {
 	flag.BoolVar(&gzipOn, "gzipOn", true, "Activate GZIP by adding specific header to the request. That might make all tests fail")
 	flag.Uint64Var(&goroutinesMax, "goroutinesMax", uint64(3*runtime.NumCPU()), "Maximum number of goroutines in parallel in order to avoid hoarding too much resources.")
 	flag.Parse()
+	if len(queryStr) < 2 || strings.Index(queryStr, "?") != (len(queryStr)-1) || strings.LastIndex(queryStr, "/") == (len(queryStr)-2) {
+		fmt.Printf("Check it out that your -queryStr %v is the correct one expected by NGINX and ends in '?'\n", queryStr)
+		os.Exit(1)
+	}
+	_, err := url.ParseRequestURI(queryStr)
+	if err != nil {
+		fmt.Printf("Check it out that your -queryStr %v is a correct URL\n", queryStr)
+		os.Exit(1)
+	}
 }
 
 func TestRequests(t *testing.T) {
@@ -77,7 +88,6 @@ func TestRequests(t *testing.T) {
 			t.FailNow()
 		}
 	}
-
 	// grab the real queries to launch
 	dataMap, err := ioutil.ReadFile(dataFile)
 	if err != nil {
@@ -106,11 +116,11 @@ func TestRequests(t *testing.T) {
 	for dec.More() {
 
 		var rr ReqRes
-
+		rr.Qry = ""
 		err = dec.Decode(&rr)
-		if err != nil {
+		if err != nil || rr.Req == nil || rr.Res == nil {
 			t.Error("Unable to process Request Response object.")
-			continue
+			t.FailNow()
 		}
 
 		// launch an extra goroutine
@@ -125,7 +135,6 @@ func TestRequests(t *testing.T) {
 			goroutinesRunning = 0
 		}
 	}
-
 	err = ignoreLastBracket(dec)
 	if err != nil {
 		t.Error("Unable to process Mock Request Response File. " + err.Error())
@@ -133,7 +142,9 @@ func TestRequests(t *testing.T) {
 	}
 
 	// Wait for all gorutines to finish
-	wg.Wait()
+	if goroutinesRunning > 0 {
+		wg.Wait()
+	}
 
 	failed := atomic.LoadUint64(&failedRequests)
 	success := atomic.LoadUint64(&successRequests)
@@ -149,7 +160,7 @@ func TestRequests(t *testing.T) {
 // process specif request
 func checkRequest(current uint64, goroutinesRunning uint64, t *testing.T, rr *ReqRes, wg *sync.WaitGroup, failed *uint64, success *uint64) {
 
-	defer (*wg).Done()
+	defer wg.Done()
 
 	query := queryStr
 	if len(rr.Qry) > 0 {
